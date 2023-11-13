@@ -6,11 +6,13 @@ transport-independent transport operators.
 """
 
 from abc import abstractmethod
-from collections import OrderedDict
+from warnings import warn
+from typing import List, Tuple, Dict
 
 import numpy as np
 
 import openmc
+from openmc.checkvalue import check_value
 from openmc.exceptions import DataError
 from openmc.mpi import comm
 from .abc import TransportOperator, OperatorResult
@@ -32,9 +34,9 @@ class OpenMCOperator(TransportOperator):
     ----------
     materials : openmc.Materials
         List of all materials in the model
-    cross_sections : str or pandas.DataFrame
-        Path to continuous energy cross section library, or object containing
-        one-group cross-sections.
+    cross_sections : str or list of MicroXS
+        Path to continuous energy cross section library, or list of objects
+        containing cross sections.
     chain_file : str, optional
         Path to the depletion chain XML file. Defaults to
         openmc.config['chain_file'].
@@ -44,7 +46,6 @@ class OpenMCOperator(TransportOperator):
         in the previous results.
     diff_burnable_mats : bool, optional
         Whether to differentiate burnable materials with multiple instances.
-        Volumes are divided equally from the original material volume.
     fission_q : dict, optional
         Dictionary of nuclides and their fission Q values [eV].
     helper_kwargs : dict
@@ -57,13 +58,21 @@ class OpenMCOperator(TransportOperator):
         if ``reduce_chain`` evaluates to true. The default value of
         ``None`` implies no limit on the depth.
 
+    diff_volume_method : str
+        Specifies how the volumes of the new materials should be found. Default
+        is to 'divide equally' which divides the original material volume
+        equally between the new materials, 'match cell' sets the volume of the
+        material to volume of the cell they fill.
+
+        .. versionadded:: 0.14.0
+
     Attributes
     ----------
     materials : openmc.Materials
         All materials present in the model
-    cross_sections : str or MicroXS
-            Path to continuous energy cross section library, or object
-            containing one-group cross-sections.
+    cross_sections : str or list of MicroXS
+        Path to continuous energy cross section library, or list of objects
+        containing cross sections.
     output_dir : pathlib.Path
         Path to output directory to save results.
     round_number : bool
@@ -96,6 +105,7 @@ class OpenMCOperator(TransportOperator):
             chain_file=None,
             prev_results=None,
             diff_burnable_mats=False,
+            diff_volume_method='divide equally',
             fission_q=None,
             helper_kwargs=None,
             reduce_chain=False,
@@ -115,6 +125,10 @@ class OpenMCOperator(TransportOperator):
         self.materials = materials
         self.cross_sections = cross_sections
 
+        check_value('diff volume method', diff_volume_method,
+                    {'divide equally', 'match cell'})
+        self.diff_volume_method = diff_volume_method
+
         # Reduce the chain to only those nuclides present
         if reduce_chain:
             init_nuclides = set()
@@ -133,6 +147,18 @@ class OpenMCOperator(TransportOperator):
         # This nuclides variables contains every nuclides
         # for which there is an entry in the micro_xs parameter
         openmc.reset_auto_ids()
+
+        self.nuclides_with_data = self._get_nuclides_with_data(
+            self.cross_sections)
+
+        # Select nuclides with data that are also in the chain
+        self._burnable_nucs = [nuc.name for nuc in self.chain.nuclides
+                               if nuc.name in self.nuclides_with_data]
+
+        # Select nuclides without data that are also in the chain
+        self._decay_nucs = [nuc.name for nuc in self.chain.nuclides
+                            if nuc.name not in self.nuclides_with_data]
+
         self.burnable_mats, volumes, all_nuclides = self._get_burnable_mats()
         self.local_mats = _distribute(self.burnable_mats)
 
@@ -141,13 +167,6 @@ class OpenMCOperator(TransportOperator):
 
         if self.prev_res is not None:
             self._load_previous_results()
-
-        self.nuclides_with_data = self._get_nuclides_with_data(
-            self.cross_sections)
-
-        # Select nuclides with data that are also in the chain
-        self._burnable_nucs = [nuc.name for nuc in self.chain.nuclides
-                               if nuc.name in self.nuclides_with_data]
 
         # Extract number densities from the geometry / previous depletion run
         self._extract_number(self.local_mats,
@@ -165,14 +184,14 @@ class OpenMCOperator(TransportOperator):
         """Assign distribmats for each burnable material"""
         pass
 
-    def _get_burnable_mats(self):
+    def _get_burnable_mats(self) -> Tuple[List[str], Dict[str, float], List[str]]:
         """Determine depletable materials, volumes, and nuclides
 
         Returns
         -------
         burnable_mats : list of str
-            List of burnable material IDs
-        volume : OrderedDict of str to float
+            list of burnable material IDs
+        volume : dict of str to float
             Volume of each material in [cm^3]
         nuclides : list of str
             Nuclides in order of how they'll appear in the simulation.
@@ -181,14 +200,20 @@ class OpenMCOperator(TransportOperator):
 
         burnable_mats = set()
         model_nuclides = set()
-        volume = OrderedDict()
+        volume = {}
 
         self.heavy_metal = 0.0
 
         # Iterate once through the geometry to get dictionaries
         for mat in self.materials:
             for nuclide in mat.get_nuclides():
-                model_nuclides.add(nuclide)
+                if nuclide in self.nuclides_with_data or self._decay_nucs:
+                    model_nuclides.add(nuclide)
+                else:
+                    msg = (f"Nuclilde {nuclide} in material {mat.id} is not "
+                           "present in the depletion chain and has no cross "
+                           "section data.")
+                    raise warn(msg)
             if mat.depletable:
                 burnable_mats.add(str(mat.id))
                 if mat.volume is None:
@@ -246,7 +271,7 @@ class OpenMCOperator(TransportOperator):
         ----------
         local_mats : list of str
             Material IDs to be managed by this process
-        volume : OrderedDict of str to float
+        volume : dict of str to float
             Volumes for the above materials in [cm^3]
         all_nuclides : list of str
             Nuclides to be used in the simulation.

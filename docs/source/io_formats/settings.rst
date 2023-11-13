@@ -60,13 +60,15 @@ fission.
 ``<cutoff>`` Element
 --------------------
 
-The ``<cutoff>`` element indicates two kinds of cutoffs. The first is the weight
-cutoff used below which particles undergo Russian roulette. Surviving particles
-are assigned a user-determined weight. Note that weight cutoffs and Russian
-rouletting are not turned on by default. The second is the energy cutoff which
-is used to kill particles under certain energy. The energy cutoff should not be
-used unless you know particles under the energy are of no importance to results
-you care. This element has the following attributes/sub-elements:
+The ``<cutoff>`` element indicates three kinds of cutoffs. The first is the
+weight cutoff used below which particles undergo Russian roulette. Surviving
+particles are assigned a user-determined weight. Note that weight cutoffs and
+Russian rouletting are not turned on by default. The second is the energy cutoff
+which is used to kill particles under certain energy. The energy cutoff should
+not be used unless you know particles under the energy are of no importance to
+results you care. The third is the time cutoff used to kill particles whose time
+exceeds a specific cutoff. Particles will be killed exactly at the specified
+time.
 
   :weight:
     The weight below which particles undergo Russian roulette.
@@ -98,6 +100,26 @@ you care. This element has the following attributes/sub-elements:
     The energy under which positrons will be killed.
 
     *Default*: 0.0
+
+  :time_neutron
+    The time above which neutrons will be killed.
+
+    *Default*: Infinity
+
+  :time_photon
+    The time above which photons will be killed.
+
+    *Default*: Infinity
+
+  :time_electron
+    The time above which electrons will be killed.
+
+    *Default*: Infinity
+
+  :time_positron
+    The time above which positorns will be killed.
+
+    *Default*: Infinity
 
 ----------------------------
 ``<delayed_photon_scaling>``
@@ -254,6 +276,16 @@ then, OpenMC will only use up to the :math:`P_1` data.
   .. note:: This element is not used in the continuous-energy
     :ref:`energy_mode`.
 
+
+--------------------------------------
+``<max_write_lost_particles>`` Element
+--------------------------------------
+
+This ``<max_write_lost_particles>`` element indicates the maximum number of
+particle restart files (per MPI process) to write for lost particles.
+
+  *Default*: None
+
 .. _mesh_element:
 
 ------------------
@@ -344,6 +376,15 @@ enabled. This element has no attributes or sub-elements and can be set to
 either "false" or "true".
 
   *Default*: false
+
+-----------------------
+``<plot_seed>`` Element
+-----------------------
+
+The ``<plot_seed>`` element is used to set the seed for the pseudorandom number
+generator during generation of colors in plots.
+
+  *Default*: 1
 
 ---------------------
 ``<ptables>`` Element
@@ -477,14 +518,15 @@ attributes/sub-elements:
       as a unique pointer. This function can be used to pass parameters through to
       the source from the XML, if needed.
 
-    More documentation on how to build sources can be found in :ref:`custom_source`.
+    More documentation on how to build sources can be found in
+    :ref:`compiled_source`.
 
   :parameters:
     If this attribute is given, it indicated that the source type is
     ``compiled``. Its value provides the parameters to pass through to the class
     generated using the ``library`` parameter. More documentation on how to
     build parametrized sources can be found in
-    :ref:`parameterized_custom_source`.
+    :ref:`parameterized_compiled_source`.
 
   :space:
     An element specifying the spatial distribution of source sites. This element
@@ -1026,8 +1068,14 @@ The ``<volume_calc>`` element indicates that a stochastic volume calculation
 should be run at the beginning of the simulation. This element has the following
 sub-elements/attributes:
 
-  :cells:
-    The unique IDs of cells for which the volume should be estimated.
+  :domain_type:
+    The type of each domain for the volume calculation ("cell", "material", or
+    "universe").
+
+    *Default*: None
+
+  :domain_ids:
+    The unique IDs of domains for which the volume should be estimated.
 
     *Default*: None
 
@@ -1037,16 +1085,41 @@ sub-elements/attributes:
     *Default*: None
 
   :lower_left:
-     The lower-left Cartesian coordinates of a bounding box that is used to
-     sample points within.
+    The lower-left Cartesian coordinates of a bounding box that is used to
+    sample points within.
 
-     *Default*: None
+    *Default*: None
 
   :upper_right:
-     The upper-right Cartesian coordinates of a bounding box that is used to
-     sample points within.
+    The upper-right Cartesian coordinates of a bounding box that is used to
+    sample points within.
 
-     *Default*: None
+    *Default*: None
+
+  :threshold:
+    Presence of a ``<threshold>`` sub-element indicates that the volume
+    calculation will be halted based on a threshold on the error. It has the
+    following sub-elements/attributes:
+
+    :type:
+      The type of the trigger. Accepted options are "variance", "std_dev",
+      and "rel_err".
+
+      :variance:
+        Variance of the mean, :math:`\sigma^2`
+
+      :std_dev:
+        Standard deviation of the mean, :math:`\sigma`
+
+      :rel_err:
+        Relative error of the mean, :math:`\frac{\sigma}{\mu}`
+
+      *Default*: None
+
+    :threshold:
+      The trigger's convergence criterion for the given type.
+
+      *Default*: None
 
 ----------------------------
 ``<weight_windows>`` Element
@@ -1169,10 +1242,28 @@ mesh-based weight windows.
 
         *Default*: 5.0
 
+---------------------------------------
+``<weight_window_checkpoints>`` Element
+---------------------------------------
+
+The ``<weight_window_checkpoints>`` element indicates the checkpoints for weight
+window split/roulette (surface, collision or both). This element has the
+following sub-elements/attributes:
+
+  :surface:
+    If set to "true", weight window checks will be performed at surface
+    crossings.
+
+    *Default*: False
+
+  :collision:
+    If set to "true", weight window checks will be performed at collisions.
+
+    *Default*: True
+
 --------------------------------------
 ``<weight_windows_file>`` Element
 --------------------------------------
 
   The ``weight_windows_file`` element has no attributes and contains the path to
   a weight windows HDF5 file to load during simulation initialization.
-

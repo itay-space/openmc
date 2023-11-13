@@ -33,11 +33,11 @@ def model():
     settings.run_mode = 'fixed source'
 
     # build
-    mesh = openmc.CylindricalMesh()
-    mesh.phi_grid = np.linspace(0, 2*np.pi, 21)
-    mesh.z_grid = np.linspace(-geom_size, geom_size, 11)
-    mesh.r_grid = np.linspace(0, geom_size, geom_size)
-
+    mesh = openmc.CylindricalMesh(
+        phi_grid=np.linspace(0, 2*np.pi, 21),
+        z_grid=np.linspace(-geom_size, geom_size, 11),
+        r_grid=np.linspace(0, geom_size, geom_size)
+    )
     tally = openmc.Tally()
 
     mesh_filter = openmc.MeshFilter(mesh)
@@ -98,7 +98,7 @@ def test_offset_mesh(run_in_tmpdir, model, estimator, origin):
         centroids = mesh.centroids
         for ijk in mesh.indices:
             i, j, k = np.array(ijk) - 1
-            if model.geometry.find(centroids[:, i, j, k]):
+            if model.geometry.find(centroids[i, j, k]):
                 mean[i, j, k] == 0.0
             else:
                 mean[i, j, k] != 0.0
@@ -127,10 +127,11 @@ def void_coincident_geom_model():
     settings.particles = 1000
     model.settings = settings
 
-    mesh = openmc.CylindricalMesh()
-    mesh.r_grid = np.linspace(0, 250, 501)
-    mesh.z_grid = [-250, 250]
-    mesh.phi_grid = np.linspace(0, 2*np.pi, 2)
+    mesh = openmc.CylindricalMesh(
+        r_grid=np.linspace(0, 250, 501),
+        z_grid=[-250, 250],
+        phi_grid=np.linspace(0, 2*np.pi, 2),
+    )
     mesh_filter = openmc.MeshFilter(mesh)
 
     tally = openmc.Tally()

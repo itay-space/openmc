@@ -1,5 +1,4 @@
 from abc import ABCMeta
-from collections import OrderedDict
 from collections.abc import Iterable
 import hashlib
 from itertools import product
@@ -23,7 +22,7 @@ from ._xml import get_text
 _FILTER_TYPES = (
     'universe', 'material', 'cell', 'cellborn', 'surface', 'mesh', 'energy',
     'energyout', 'mu', 'polar', 'azimuthal', 'distribcell', 'delayedgroup',
-    'energyfunction', 'cellfrom', 'legendre', 'spatiallegendre',
+    'energyfunction', 'cellfrom', 'materialfrom', 'legendre', 'spatiallegendre',
     'sphericalharmonics', 'zernike', 'zernikeradial', 'particle', 'cellinstance',
     'collision', 'time'
 )
@@ -452,7 +451,7 @@ class UniverseFilter(WithIDFilter):
     Parameters
     ----------
     bins : openmc.UniverseBase, int, or iterable thereof
-        The Universes to tally. Either openmc.UniverseBase objects or their
+        The Universes to tally. Either :class:`openmc.UniverseBase` objects or their
         Integral ID numbers can be used.
     filter_id : int
         Unique identifier for the filter
@@ -476,7 +475,31 @@ class MaterialFilter(WithIDFilter):
     Parameters
     ----------
     bins : openmc.Material, Integral, or iterable thereof
-        The Materials to tally. Either openmc.Material objects or their
+        The material(s) to tally. Either :class:`openmc.Material` objects or their
+        Integral ID numbers can be used.
+    filter_id : int
+        Unique identifier for the filter
+
+    Attributes
+    ----------
+    bins : Iterable of Integral
+        openmc.Material IDs.
+    id : int
+        Unique identifier for the filter
+    num_bins : Integral
+        The number of filter bins
+
+    """
+    expected_type = Material
+
+
+class MaterialFromFilter(WithIDFilter):
+    """Bins tally event locations based on the Material they occurred in.
+
+    Parameters
+    ----------
+    bins : openmc.Material, Integral, or iterable thereof
+        The material(s) to tally. Either :class:`openmc.Material` objects or their
         Integral ID numbers can be used.
     filter_id : int
         Unique identifier for the filter
@@ -500,7 +523,7 @@ class CellFilter(WithIDFilter):
     Parameters
     ----------
     bins : openmc.Cell, int, or iterable thereof
-        The cells to tally. Either openmc.Cell objects or their ID numbers can
+        The cells to tally. Either :class:`openmc.Cell` objects or their ID numbers can
         be used.
     filter_id : int
         Unique identifier for the filter
@@ -1223,8 +1246,8 @@ class RealFilter(Filter):
     def get_bin_index(self, filter_bin):
         i = np.where(self.bins[:, 1] == filter_bin[1])[0]
         if len(i) == 0:
-            msg = (f'Unable to get the bin index for Filter since '
-                   '"{filter_bin}" is not one of the bins')
+            msg = ('Unable to get the bin index for Filter since '
+                   f'"{filter_bin}" is not one of the bins')
             raise ValueError(msg)
         else:
             return i[0]
@@ -1401,6 +1424,7 @@ class EnergyFilter(RealFilter):
 
         """
 
+        cv.check_value('group_structure', group_structure, openmc.mgxs.GROUP_STRUCTURES.keys())
         return cls(openmc.mgxs.GROUP_STRUCTURES[group_structure.upper()])
 
 
@@ -1677,7 +1701,7 @@ class DistribcellFilter(Filter):
                 level_key = f'level {i_level + 1}'
 
                 # Create a dictionary for this level for Pandas Multi-index
-                level_dict = OrderedDict()
+                level_dict = {}
 
                 # Use the first distribcell path to determine if level
                 # is a universe/cell or lattice level
