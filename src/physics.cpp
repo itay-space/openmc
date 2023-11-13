@@ -1,4 +1,5 @@
 #include "openmc/physics.h"
+#include <fstream>
 
 #include "openmc/bank.h"
 #include "openmc/bremsstrahlung.h"
@@ -792,7 +793,13 @@ void elastic_scatter(int i_nuclide, const Reaction& rx, double kT, Particle& p)
   // compute cosine of scattering angle in LAB frame by taking dot product of
   // neutron's pre- and post-collision angle
   p.mu() = p.u().dot(v_n) / vel;
+  
+  //std::ofstream outfile;
 
+  //outfile.open("scatter", std::ios_base::app); // append instead of overwrite
+  //outfile << v_cm.dot(v_n)/v_cm.norm()/v_n.norm()<<"\n";
+
+          
   // Set energy and direction of particle in LAB frame
   p.u() = v_n / vel;
 
@@ -850,7 +857,7 @@ Direction sample_target_velocity(const Nuclide& nuc, double E, Direction u,
   // use appropriate target velocity sampling method
   switch (sampling_method) {
   case ResScatMethod::cxs:
-    fmt::print("ResScatMethod = ResScatMethod::cxs\n");
+    //fmt::print("ResScatMethod = ResScatMethod::cxs\n");
     // sample target velocity with the constant cross section (cxs) approx.
     return sample_cxs_target_velocity(nuc.awr_, E, u, kT, seed);
 

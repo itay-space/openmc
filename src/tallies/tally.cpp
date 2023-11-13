@@ -170,6 +170,10 @@ Tally::Tally(pugi::xml_node node)
 
   this->set_nuclides(node);
 
+  // READ DATA FOR POSITIONS
+
+  this->set_positions(node);
+
   // =======================================================================
   // READ DATA FOR SCORES
 
@@ -668,6 +672,35 @@ void Tally::set_nuclides(const vector<std::string>& nuclides)
     }
   }
 }
+
+
+void Tally::set_positions(pugi::xml_node node)
+{
+  positions_.clear();
+
+  // By default, we tally just the total material rates.
+  if (!check_for_node(node, "positions")) {
+    positions_.push_back("");
+    return;
+  }
+
+  // The user provided specifics nuclides.  Parse it as an array with either
+  // "total" or a nuclide name like "U235" in each position.
+  auto words = get_node_array<std::string>(node, "positions");
+  this->set_positions(words);
+}
+
+void Tally::set_positions(const vector<std::string>& positions)
+{
+  positions_.clear();
+
+  for (const auto& pos : positions) {
+    positions_.push_back(pos);
+  }
+}
+
+
+
 
 void Tally::init_triggers(pugi::xml_node node)
 {

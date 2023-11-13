@@ -163,7 +163,7 @@ void Particle::from_source(const SourceSite* src)
   time() = src->time;
   time_last() = src->time;
 
-  fmt::print("==============================particle created==============================\n");
+  //fmt::print("==============================particle created==============================\n");
   //fmt::print("u = {0} , {1} , {2}\n",u().x,u().y,u().z);
   //fmt::print("u_last = {0} , {1} , {2}\n",u_last().x,u_last().y,u_last().z);
   //fmt::print("pos = {0} , {1} , {2}\n",r().x,r().y,r().z);

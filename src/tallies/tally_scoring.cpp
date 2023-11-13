@@ -1,4 +1,6 @@
 #include "openmc/tallies/tally_scoring.h"
+#include <fstream>
+#include <iostream>
 #include <csignal>
 #include "openmc/bank.h"
 #include "openmc/capi.h"
@@ -2500,291 +2502,199 @@ void score_collision_tally(Particle& p)
     match.bins_present_ = false;
 }
 Position GetRotVector(double phi ,Position u_lab ,Position k )
-  {
-    return u_lab*std::cos(phi) + k.crossProduct(u_lab) * std::sin(phi) + k * k.dot(u_lab) * (1 - std::cos(phi));
-  }
+{
+  return u_lab*std::cos(phi) + k.cross(u_lab) * std::sin(phi) + k * k.dot(u_lab) * (1 - std::cos(phi));
+}
 
 void score_point_tally(Particle& p)
 {
-  col_counter ++;
-  fmt::print("------------------------collison happened------------------------\n");
 
-  fmt::print("col counter = {}\n",col_counter);
-  std::cout << "mass in ev  " << p.getMass() << std::endl ;
-  // Determine the collision estimate of the flux
-  bool verbose=false;//true;
-  double ReturnArray[4]= {std::nan(""),std::nan(""),std::nan(""),std::nan("")};
+  
+  // Get position (x,y,z) of detector
+  //
+  double det_pos[3];
+
+
+
+  for (auto i_tally : model::active_point_tallies) 
+  {
+    const Tally& tally {*model::tallies[i_tally]};
+    for (auto i = 0; i < tally.positions_.size(); ++i)
+       {
+        if (tally.positions_.size() > 1) {
+        auto pos_coord = tally.positions_[i];
+        det_pos[i] = std::stod(pos_coord);
+        }
+        //fmt::print("pos COORD = {0}" ,det_pos[i] );
+         }
+  }
+
+  // Initialize fluxes
+  //
   double flux = 0.0;
   double flux1 = 0.0;
   double flux2 = 0.0;
+  
+  // Get possible solutions
+  //
+  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+                   det_pos[1]-p.r().y,
+                   det_pos[2]-p.r().z};
+  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
+  
+  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
   const auto& nuc {data::nuclides[p.event_nuclide()]};
-  const auto& micro {p.neutron_xs(p.event_nuclide())};
-  int i_temp = micro.index_temp;
-  double kT = nuc->multipole_ ? p.sqrtkT() * p.sqrtkT() : nuc->kTs_[i_temp];
-  fmt::print("kT = {}\n",kT);
   double awr = nuc->awr_;
-  double dl = 0;
-  getMu_COM(0,0,0,p,awr,ReturnArray , 0, dl);
+  double m2= m1*awr; // mass of target 
+  double m3= m1; // mass of outgoing particle to detector 
+  double m4= m2; // mass of recoil target  system
+  
+  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
+  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
+  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
+  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab
+  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2);
+  double E_cm = E1_tot + E2_tot;
+  Direction p_cm = p1 + p2;
+  double p_tot_cm = p_cm.norm();
+  
+  double cos_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3 
+  double theta = std::acos(cos_lab);
+  double sin_lab_sq = 1 - cos_lab*cos_lab;
+
+  double M_cm = std::sqrt(E_cm*E_cm - p_tot_cm*p_tot_cm); // mass of the center of mass (incoming and target)
+  double gamma = E_cm/M_cm;
+  double p1_cm[4];
+  double A[4] = {E_cm, p_cm.x , p_cm.y , p_cm.z};
+  double B[4] = {E1_tot , p1.x,p1.y,p1.z};
+  boostf( A, B , p1_cm);
+  double p1_tot_cm = std::sqrt(p1_cm[1]*p1_cm[1]+p1_cm[2]*p1_cm[2]+p1_cm[3]*p1_cm[3]);
+  double cond = (M_cm/p_tot_cm) * (p1_tot_cm/m3);
+  double insq = (M_cm*M_cm * p1_tot_cm*p1_tot_cm - m3*m3*p_tot_cm*p_tot_cm*sin_lab_sq);
+  double p3_tot_1 = 0;
+  double p3_tot_2 = 0;
+  double E3k_1 = 0;
+  double E3k_2 = 0;
+  Direction p3_1 = {0,0,0};
+  Direction p3_2 = {0,0,0};
+  double Fp3cm_1[4];
+  double Fp3cm_2[4];
   const auto& rx {nuc->reactions_[0]};
   auto& d = rx->products_[0].distribution_[0];
   auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
-  Direction u_lab {0-p.r().x,0-p.r().y,0-p.r().z};
-  u_lab = u_lab/u_lab.norm();
-  double cos_lab = u_lab.dot(p.u_last());
-  double theta_lab = std::acos(cos_lab);
-  double sin_lab = std::sin(theta_lab);
-  double mu_COM_or_itay = (std::sqrt(awr*awr - sin_lab*sin_lab)*cos_lab - sin_lab*sin_lab)/awr;
-  double mu_COM1 = ReturnArray[0];
-  double E1 = ReturnArray[2];
-  double mu_COM2 = ReturnArray[1];
-  double E2 = ReturnArray[3];
-  double ReturnArrayPlus[4] = {std::nan(""),std::nan(""),std::nan(""),std::nan("")};
-  double ReturnArrayMinus[4] = {std::nan(""),std::nan(""),std::nan(""),std::nan("")};
-// calculate new detector place
-  // axis of rotation
-  // cross product of incoming and outgoing secondary - for the plane of the collison
-  Position k = ( p.u_last() ).crossProduct(u_lab);
-  
-  // santity for cross product 
-  
- 
-   
- // normalize k
-  k = k/k.norm();
-  double dphi = 0.00001;
-  Position u_lab_plus = GetRotVector(dphi,u_lab ,k);
-  Position u_lab_minus = GetRotVector(-dphi,u_lab ,k);
- // now we rotate ulab - which is the vector to the dectctor in the plane of the collision by angle phi
-  /*
- fmt::print("santity for cross product{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab= {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("k= {0} , {1} , {2}\n",k.x,k.y,k.z);
-  fmt::print("santity for Rotation{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab original = {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("u lab plus= {0} , {1} , {2}\n",u_lab_plus.x,u_lab_plus.y,u_lab_plus.z);
-  fmt::print("u lab minus= {0} , {1} , {2}\n",u_lab_minus.x,u_lab_minus.y,u_lab_minus.z);
-  fmt::print("det plus = {0} , {1} , {2}\n",(u_lab_plus + p.r()).x,(u_lab_plus + p.r()).y,(u_lab_plus + p.r()).z);
-  fmt::print("det minus = {0} , {1} , {2}\n",(u_lab_minus + p.r()).x,(u_lab_minus + p.r()).y,(u_lab_minus + p.r()).z);
-  fmt::print("theta original , plus , minus = {0} , {1} , {2}\n",theta_lab, std::acos(u_lab_plus.dot(p.u_last())) ,std::acos(u_lab_minus.dot(p.u_last())));
-*/
-  
-// Rodrigues' Rotation Formula
-
-  getMu_COM((u_lab_plus + p.r()).x,(u_lab_plus + p.r()).y,(u_lab_plus + p.r()).z,p,awr,ReturnArrayPlus ,100 , dl);
-  getMu_COM((u_lab_minus + p.r()).x,(u_lab_minus + p.r()).y,(u_lab_minus + p.r()).z,p,awr,ReturnArrayMinus ,-100 , dl );
-  double MuPlus1 = ReturnArrayPlus[0]; // not sure about changing mu lab correctly
-  double MuPlus2 = ReturnArrayPlus[1];
-  double MuMinus1 = ReturnArrayMinus[0];
-  double MuMinus2 = ReturnArrayMinus[1];
-  double theta_pdf1 = d_->angle().get_pdf_value(p.E_last(),mu_COM1,p.current_seed());
-  double theta_pdf2 = d_->angle().get_pdf_value(p.E_last(),mu_COM2,p.current_seed());
-  double derivative1 = std::abs((MuPlus1-MuMinus1)/(2*dphi)/sin_lab);
-  double derivative2 = std::abs((MuPlus2-MuMinus2)/(2*dphi)/sin_lab);   // divide by zero can cause nan!
-  /*
-  // one sided derivative
-  double derivative1 = std::abs(MuPlus1-mu_COM1)/(dphi);
-  double derivative2 = std::abs(MuPlus2-mu_COM2)/(dphi);
-  */ 
-
-  //double derivative =1;
-  double theta_pdf_lab1 = theta_pdf1 * derivative1;
-  double theta_pdf_lab2 = theta_pdf2 * derivative2;
-  //double E_ghost = p.E_last()*(1+awr*awr+2*awr*mu_COM)/(1+awr)/(1+awr);
-  
-  //double m_incoming =MASS_NEUTRON_EV;
-  double E_ghost1 = E1;
-  double E_ghost2 = E2;
 
 
-// first solution
-  if(!std::isnan(mu_COM1))
+  if ( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
   {
-  Particle ghost_particle=Particle();
-  ghost_particle.initilze_ghost_particle(p,u_lab,E_ghost1);
-  ghost_counter++;
-  //fmt::print("---------------------ghost particle created {}---------------------\n",ghost_counter);
+    // first solution
+    p3_tot_1 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab + 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
+    p3_1 = u_lab_unit*p3_tot_1;
+    double E3_tot_1 = std::sqrt(p3_tot_1*p3_tot_1 + m3*m3);
+    E3k_1 = (E3_tot_1 - m3) *1e6; // back to eV
+    double B1[4] = {E3_tot_1 , p3_1.x,p3_1.y,p3_1.z};
+    boostf( A, B1 , Fp3cm_1);
+    double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
+    double E3cm_1 = std::sqrt(p3cm_tot_1*p3cm_tot_1 + m3*m3);
+    double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);
+    double pdf1cm = d_->angle().get_pdf_value(p.E_last(),mucm_1,p.current_seed()); 
+    double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
+    double q1 = (p_tot_cm / E_cm) * (E3cm_1 / p3cm_tot_1);
+    double sincm1 = std::sqrt(1-mucm03_1*mucm03_1);
+    double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
+    double derivative1 =  gamma*(1+q1*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
+    double pdf1lab = pdf1cm/std::abs(derivative1);
+    //std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
+    //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
+    //std::cout << "derivative1 PAPER  "<< (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
 
 
-
-  //calculate shilding
-  double total_distance = std::sqrt(p.r().x*p.r().x+p.r().y*p.r().y+p.r().z*p.r().z);
-  double remaining_distance = std::sqrt(p.r().x*p.r().x+p.r().y*p.r().y+p.r().z*p.r().z);
-  double total_MFP = 0;
-  ghost_particle.event_calculate_xs();
-  ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-  double advance_distance = ghost_particle.boundary().distance;
-  while(advance_distance<remaining_distance)
-  {
-    total_MFP += advance_distance*ghost_particle.macro_xs().total;
-      //Advance particle in space and time
-    for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-      ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+    Particle ghost_particle=Particle();
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
+    //calculate shilding
+    double total_distance = u_lab.norm();
+    double remaining_distance = total_distance;
+    double total_MFP1 = 0;
+    ghost_particle.event_calculate_xs();
+    ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+    double advance_distance = ghost_particle.boundary().distance;
+    while(advance_distance<remaining_distance)
+    {
+      total_MFP1 += advance_distance*ghost_particle.macro_xs().total;
+        //Advance particle in space and time
+      for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+        ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+      }
+        remaining_distance-=advance_distance;
+        ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
+        ghost_particle.event_cross_surface();
+        ghost_particle.event_calculate_xs();
+        ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+        advance_distance = ghost_particle.boundary().distance;
     }
-      remaining_distance-=advance_distance;
-      //fmt::print("advane distance 1 ={} \n",advance_distance);
-      //fmt::print("advane XS 1= {}\n",ghost_particle.macro_xs().total);
-      //fmt::print("ghost particle speed= {}\n",ghost_particle.speed());
-      ghost_particle.time() += advance_distance / ghost_particle.speed();
-      ghost_particle.event_cross_surface();
-      //fmt::print("pos = {0} , {1} , {2}\n",ghost_particle.r().x,ghost_particle.r().y,ghost_particle.r().z);
+    flux1 = ghost_particle.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf1lab;
+    //std::cout << "flux1 ITAY:  "<< flux1 <<std::endl;
+
+
+
+
+
+
+
+    if ((cond < 1) && (theta < std::asin(cond)))
+    {
+      // second solution
+      p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
+      p3_2 = u_lab_unit*p3_tot_2;
+      double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
+      E3k_2 = (E3_tot_2 -m3 )*1e6; 
+      double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
+      boostf( A, B2 , Fp3cm_2);
+      double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
+      double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
+      double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
+      double pdf2cm = d_->angle().get_pdf_value(p.E_last(),mucm_2,p.current_seed()); 
+      double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
+      double q2 = (p_tot_cm / E_cm) * (E3cm_2 / p3cm_tot_2);
+      double sincm2 = std::sqrt(1-mucm03_2*mucm03_2);
+      double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2;
+      double derivative2 =  gamma*(1+q2*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
+      double pdf2lab = pdf2cm/std::abs(derivative2);
+     // std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
+     // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
+
+      Particle ghost_particle=Particle();
+      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_2);
+      //calculate shilding
+      double total_distance = u_lab.norm();
+      double remaining_distance = total_distance;
+      double total_MFP2 = 0;
       ghost_particle.event_calculate_xs();
       ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-      advance_distance = ghost_particle.boundary().distance;
-      //fmt::print("advane distance 2 ={} \n",advance_distance);
-      //fmt::print("advane XS 2= {}\n",ghost_particle.macro_xs().total);
+      double advance_distance = ghost_particle.boundary().distance;
+      while(advance_distance<remaining_distance)
+      {
+        total_MFP2 += advance_distance*ghost_particle.macro_xs().total;
+          //Advance particle in space and time
+        for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+          ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+        }
+          remaining_distance-=advance_distance;
+          ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
+          ghost_particle.event_cross_surface();
+          ghost_particle.event_calculate_xs();
+          ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+          advance_distance = ghost_particle.boundary().distance;
+      }
 
-  }
-  
-  //// kill patricle
-  //ghost::ghost_particles[0].event_death();
-  //ghost::ghost_particles.resize(0);
-  if(!std::isnan(flux1))
-  {
-  flux1 = ghost_particle.wgt()*exp(-total_MFP)/(2*3.14*total_distance*total_distance)*theta_pdf_lab1;
-  }
-  if(std::isnan(flux1))
-  {
-    flux1 = 0;
-  }
-  if(verbose)
-  {
-    fmt::print("------------------------flux contribution------------------------\n");
-    fmt::print("parent particle pos = {0} , {1} , {2}\n",p.r().x,p.r().y,p.r().z);
-    fmt::print("parent particle u = {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-    fmt::print("parent particle E = {}\n",p.E_last());
-    fmt::print("ghost particle E = {}\n",ghost_particle.E());
-    fmt::print("ghost particle u = {0} , {1} , {2}\n",ghost_particle.u().x,ghost_particle.u().y,ghost_particle.u().z);
-    fmt::print("ghost particle Mu COM 1 Arik= {}\n",mu_COM1);
-    fmt::print("ghost particle Mu COM 2 Arik= {}\n",mu_COM2);
-    fmt::print("ghost particle Mu COM Or and Itay = {}\n",mu_COM_or_itay);
-    fmt::print("flux1 = {}\n",flux1);
-    fmt::print("theta1 cm pdf ={} \n",theta_pdf1);
-    fmt::print("theta2 cm pdf ={} \n",theta_pdf2);
-    fmt::print("MuPlus for sol 0 ={} \n",MuPlus1);
-    fmt::print("MuPlus for sol 1 ={}  \n",MuPlus2);
-    fmt::print("MuMinus for sol 0 ={} \n",MuMinus1);
-    fmt::print("MuMinus for sol 1 ={}  \n",MuMinus2);
-    fmt::print("derivative1 ={} \n",derivative1);
-    fmt::print("derivative2 ={} \n",derivative2);
-    fmt::print("theta1 lab pdf ={} \n",theta_pdf_lab1);
-    fmt::print("theta2 lab pdf ={} \n",theta_pdf_lab2);
-    fmt::print("santity for cross product{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab= {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("k= {0} , {1} , {2}\n",k.x,k.y,k.z);
-  fmt::print("santity for Rotation{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab original = {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("u lab plus= {0} , {1} , {2}\n",u_lab_plus.x,u_lab_plus.y,u_lab_plus.z);
-  fmt::print("u lab minus= {0} , {1} , {2}\n",u_lab_minus.x,u_lab_minus.y,u_lab_minus.z);
-  fmt::print("det plus = {0} , {1} , {2}\n",(u_lab_plus + p.r()).x,(u_lab_plus + p.r()).y,(u_lab_plus + p.r()).z);
-  fmt::print("det minus = {0} , {1} , {2}\n",(u_lab_minus + p.r()).x,(u_lab_minus + p.r()).y,(u_lab_minus + p.r()).z);
-  fmt::print("theta original , plus , minus = {0} , {1} , {2}\n",theta_lab, std::acos(u_lab_plus.dot(p.u_last())) ,std::acos(u_lab_minus.dot(p.u_last())));
-
-
-    //fmt::print("Mu - ={} \n",MuMinus);
-    //fmt::print("Mu + ={} \n",MuPlus);
-  }
-  }
-
-  // second soultion
-   if(!std::isnan(mu_COM2))
-  {
-  Particle ghost_particle=Particle();
-  ghost_particle.initilze_ghost_particle(p,u_lab,E_ghost2);
-  ghost_counter++;
-  //fmt::print("---------------------ghost particle created {}---------------------\n",ghost_counter);
-
-
-
-  //calculate shilding
-  double total_distance = std::sqrt(p.r().x*p.r().x+p.r().y*p.r().y+p.r().z*p.r().z);
-  double remaining_distance = std::sqrt(p.r().x*p.r().x+p.r().y*p.r().y+p.r().z*p.r().z);
-  double total_MFP = 0;
-  ghost_particle.event_calculate_xs();
-  ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-  double advance_distance = ghost_particle.boundary().distance;
-  while(advance_distance<remaining_distance)
-  {
-    total_MFP += advance_distance*ghost_particle.macro_xs().total;
-      //Advance particle in space and time
-    for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-      ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+          flux2 = ghost_particle.wgt()*exp(-total_MFP2)/(2*PI*total_distance*total_distance)*pdf2lab;
+          //std::cout << "flux2 ITAY:  "<< flux2 <<std::endl;
     }
-      remaining_distance-=advance_distance;
-      //fmt::print("advane distance 1 ={} \n",advance_distance);
-      //fmt::print("advane XS 1= {}\n",ghost_particle.macro_xs().total);
-      //fmt::print("ghost particle speed= {}\n",ghost_particle.speed());
-      ghost_particle.time() += advance_distance / ghost_particle.speed();
-      ghost_particle.event_cross_surface();
-      //fmt::print("pos = {0} , {1} , {2}\n",ghost_particle.r().x,ghost_particle.r().y,ghost_particle.r().z);
-      ghost_particle.event_calculate_xs();
-      ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-      advance_distance = ghost_particle.boundary().distance;
-      //fmt::print("advane distance 2 ={} \n",advance_distance);
-      //fmt::print("advane XS 2= {}\n",ghost_particle.macro_xs().total);
-
-  }
-  
-  //// kill patricle
-  //ghost::ghost_particles[0].event_death();
-  //ghost::ghost_particles.resize(0);
-if(!std::isnan(flux2))
-  {
-  flux2 = ghost_particle.wgt()*exp(-total_MFP)/(2*3.14*total_distance*total_distance)*theta_pdf_lab2;
-  }
-  if(std::isnan(flux2))
-  {
-    flux2 = 0;
-  }
-  if(verbose)
-  {
-    fmt::print("flux params = {0} {1} {2} {3}\n",ghost_particle.wgt() , exp(-total_MFP) , (2*3.14*total_distance*total_distance) ,theta_pdf_lab2 );
-
-    fmt::print("------------------------flux contribution------------------------\n");
-    fmt::print("parent particle pos = {0} , {1} , {2}\n",p.r().x,p.r().y,p.r().z);
-    fmt::print("parent particle u = {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-    fmt::print("parent particle E = {}\n",p.E_last());
-    fmt::print("ghost particle E = {}\n",ghost_particle.E());
-    fmt::print("ghost particle u = {0} , {1} , {2}\n",ghost_particle.u().x,ghost_particle.u().y,ghost_particle.u().z);
-    fmt::print("ghost particle Mu COM 1 Arik= {}\n",mu_COM1);
-    fmt::print("ghost particle Mu COM 2 Arik= {}\n",mu_COM2);
-    fmt::print("ghost particle Mu COM Or and Itay = {}\n",mu_COM_or_itay);
-    fmt::print("flux2 = {}\n",flux2);
-    fmt::print("theta1 cm pdf ={} \n",theta_pdf1);
-    fmt::print("theta2 cm pdf ={} \n",theta_pdf2);
-    fmt::print("derivative1 ={} \n",derivative1);
-    fmt::print("derivative2 ={} \n",derivative2);
-    fmt::print("theta1 lab pdf ={} \n",theta_pdf_lab1);
-    fmt::print("theta2 lab pdf ={} \n",theta_pdf_lab2);
-
-     fmt::print("MuPlus for sol 0 ={} \n",MuPlus1);
-    fmt::print("MuPlus for sol 1 ={}  \n",MuPlus2);
-
-    fmt::print("MuMinus for sol 0 ={} \n",MuMinus1);
-    fmt::print("MuMinus for sol 1 ={}  \n",MuMinus2);
-
-
-       fmt::print("santity for cross product{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab= {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("k= {0} , {1} , {2}\n",k.x,k.y,k.z);
-  fmt::print("santity for Rotation{0} \n",1);
-  fmt::print("u last= {0} , {1} , {2}\n",p.u_last().x,p.u_last().y,p.u_last().z);
-  fmt::print("u lab original = {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
-  fmt::print("u lab plus= {0} , {1} , {2}\n",u_lab_plus.x,u_lab_plus.y,u_lab_plus.z);
-  fmt::print("u lab minus= {0} , {1} , {2}\n",u_lab_minus.x,u_lab_minus.y,u_lab_minus.z);
-  fmt::print("det plus = {0} , {1} , {2}\n",(u_lab_plus + p.r()).x,(u_lab_plus + p.r()).y,(u_lab_plus + p.r()).z);
-  fmt::print("det minus = {0} , {1} , {2}\n",(u_lab_minus + p.r()).x,(u_lab_minus + p.r()).y,(u_lab_minus + p.r()).z);
-  fmt::print("theta original , plus , minus = {0} , {1} , {2}\n",theta_lab, std::acos(u_lab_plus.dot(p.u_last())) ,std::acos(u_lab_minus.dot(p.u_last())));
-  fmt::print("p weight = {0} last ={1}\n",p.wgt(),p.wgt_last());
-//fmt::print("Mu - ={} \n",MuMinus);
-    //fmt::print("Mu + ={} \n",MuPlus);
-  }
   }
 
+
+  if (std::isnan(flux1)) {flux1=0;}
+  if (std::isnan(flux2)) {flux2=0;}
+  col_counter ++;
 
   flux = flux1 + flux2;
 
@@ -2808,6 +2718,8 @@ if(!std::isnan(flux2))
       continue;
 
     // Loop over filter bins.
+      
+
     for (; filter_iter != end; ++filter_iter) {
       auto filter_index = filter_iter.index_;
       auto filter_weight = filter_iter.weight_;
@@ -2892,441 +2804,6 @@ void score_surface_tally(Particle& p, const vector<int>& tallies)
     match.bins_present_ = false;
 }
 
-
-/*
-
-
-void getMu_COM(double x_det , double y_det , double z_det ,Particle p_col , double awr , double incoming_mass ,double ReturnArray[],int diff_mode,double dl )
-{
-  //double inv_gamma = p_col.getMass()/ (p_col.E_last() + p_col.getMass());
-  //double p_momentum =  (1/inv_gamma)*(p_col.getMass() / 1e9 )*std::sqrt(1 - inv_gamma * inv_gamma); // GeV/c
-  //struct retVals { int i1, i2; }; // Declare a local structure
-  double m1= p_col.getMass()/1e6; // mass of incoming particle in MeV
-  double E1_tot = p_col.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1);
-  //return retVals {10, 20};
-  // std::cout<<"  p col "<<p_col<<std::endl;
-  // double r1[4];
-
-  
-  //r1[0] = 0;
-  //r1[1] = x_det;
-  //r1[2] = y_det;
-  //r1[3] = z_det;
-
-  //for (int i = 0; i < 4; i++)
-   // {std::cout << r1[i];}
-  double r1[4]  = {0, x_det, y_det, z_det};  // detector position lab {ignor, x, y, z}
-  double r2[4]= {0, p_col.r().x, p_col.r().y, p_col.r().z}; // collision position lab {ignor, x, y, z} 
-  double r3[4]; // r1-r2 vector from collision to detector
-  double m2= m1*awr; // mass of target matirial
-  std::cout <<"m2 = "<<m2<<std::endl;
-  double m3= m1; // mass of outgoing particle to detector //
-  double m4= m2; // mass of recoil target  system
-  double p1[3]={p1_tot*p_col.u_last().x,p1_tot* p_col.u_last().y,p1_tot* p_col.u_last().z}; // 3 momentum of incoming particle
-  double p2[3]={0, 0, 0}; //3 momentum of target in lab // need seed from openmc
-  for (int i = 0; i < 4; i++)
-    {std::cout <<"r1 "<<i<<" "<< r1[i] <<"  ";}
-  std::cout <<std::endl;
-  //std::raise(SIGTRAP);
-  for (int i = 0; i < 4; i++)
-    {std::cout <<"r2 "<<i<<" "<< r2[i] <<"  ";}
-  std::cout <<std::endl;
-
-
-  
-    // calculate
-  double Fp1[4]; //four momentum of incoming particle  
-  double Fp2[4]; //four momentum of target
-  double Fp3[4]; //four momentum of particle going to the detector
-  double UFp3[4]; //unit 3  momentum of particle going to the detector
-  double CM[4]; //four momentum of center of mass frame in lab
-  double LAB[4]; //four momentum of lab in center of mass frame 
-  double mCM; // mass of center of mass system
-  double pCM; // momentum of center of mass system
-  double p3LAB; // momentum of out particle
-  
-  double CMFp1[4]; //four momentum of incoming particle in CM  
-  double CMFp3[4]; //four momentum of out particle in CM  
-  double CMFp4[4]; //four momentum of out target in CM  
-  double Fp4[4]; //four momentum of out target in LAB  
-  double CMUp1[4]; //unit three vector of incoming particle in CM  
-  double CMUp3[4]; //unit three vector of out particle in CM  
-  double cosCM; // cosine of out going particle to detector in CM frame
-  double cosLAB; // cosine of out going particle to detector in LAB frame
-  double CME3; // Energy of out particle in CM
-  double CMp3; // momentum of out particle in CM
-  double Ur3[4], UCM[4];
-  double aa, bb, cc;
-  //double ReturnArray[2];
-  
-  
-
-  Fp1[0]=0;
-  Fp2[0]=0;
-  CM[0]=0;
-  LAB[0]=0;
-  r3[0]=0;
-
-
-  for(int i=0; i<3; i++){
-    Fp1[i+1]=p1[i];
-    Fp2[i+1]=p2[i];
-    CM[i+1]=Fp1[i+1]+Fp2[i+1];
-    LAB[i+1]=-CM[i+1];
-    r3[i+1]=r1[i+1]-r2[i+1];
-  }
- 
-  Fp1[0]=sqrt(Fp1[1]*Fp1[1]+Fp1[2]*Fp1[2]+Fp1[3]*Fp1[3]+m1*m1);
-  Fp2[0]=sqrt(Fp2[1]*Fp2[1]+Fp2[2]*Fp2[2]+Fp2[3]*Fp2[3]+m2*m2);
-  CM[0]=Fp1[0]+Fp2[0];
-  LAB[0]=CM[0];
-  r3[0]=0;
-
-  mCM=sqrt(CM[0]*CM[0]-CM[1]*CM[1]-CM[2]*CM[2]-CM[3]*CM[3]);
-  pCM=sqrt(CM[1]*CM[1]+CM[2]*CM[2]+CM[3]*CM[3]);
-  CME3=(mCM*mCM-m4*m4+m3*m3)/(2*mCM); // energy of out going particle  in CM
-  CMp3=sqrt(CME3*CME3-m3*m3);
-  
-  std::cout<<mCM<<"  "<<pCM<<"  "<<CME3<<std::endl;
-
-  boostf(CM,Fp1,CMFp1);
-  double diff = 1;
-  Vunit(CM,UCM); 
-  Vunit(r3,Ur3); 
-  cosLAB=Vdot(UCM,Ur3);
-  if (diff_mode == 1 && cosLAB+dl<=1)
-     {cosLAB = cosLAB+dl;}
-  if (diff_mode == -1 && cosLAB-dl>=-1)
-     {cosLAB = cosLAB-dl;} 
-  std::cout<<"cosLAB=  "<<cosLAB<<std::endl;
-  Vunit(CMFp1,CMUp1);
-
-
-  aa=pCM*pCM*cosLAB*cosLAB-CM[0]*CM[0];
-  bb=2*pCM*cosLAB*CME3*mCM;
-  cc=CME3*mCM*CME3*mCM-m3*m3*CM[0]*CM[0];
-
-  p3LAB=0;
-  p3LAB=(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa;
-  if(p3LAB<=0) p3LAB=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-  if(p3LAB<=0) {
-    std::cout<<" detector out of range" <<std::endl;
-    //return -1;
-  }
-
-
-  std::cout<<"p3LAB= "<<p3LAB<<std::endl;
-
-  Fp3[0]=sqrt(p3LAB*p3LAB+m3*m3);
-  for(int i=0; i<3; i++){
-    Fp3[i+1]=p3LAB*Ur3[i+1];
-  }
-  
-  boostf(CM,Fp3,CMFp3);
-  Vunit(CMFp3,CMUp3); 
-  cosCM=Vdot(UCM,CMUp3);
-
-  std::cout<<"cosCM= "<<cosCM<<std::endl;
-  ReturnArray[0] = cosCM;
-  ReturnArray[1] = (Fp3[0]-m3)*1e6;  //retrun Energy in eV
-  
-
-  std::cout<<" -----------  sanity tests ----------------------------------"<<std::endl;
- 
- Vunit(Fp3,UFp3); 
-
-  std::cout<<Vdot(UCM,UFp3)<<" = cosLAB =  "<<cosLAB<<std::endl;
-
-  std::cout<<CMFp3[0]<<" m3 energy in CM  "<<CME3<<std::endl;
-
-  CMFp4[0]=0;
-  for(int i=0; i<3; i++){
-    CMFp4[i+1]=-CMFp3[i+1];
-  }
-  CMFp4[0]=sqrt(m4*m4+CMFp4[1]*CMFp4[1]+CMFp4[2]*CMFp4[2]+CMFp4[3]*CMFp4[3]);
-  boostf(LAB,CMFp4,Fp4);
-
-  for(int i=0; i<4; i++){
-    std::cout<<CM[i]<<" = energy momentum conserv in LAB = "<<Fp4[i]+Fp3[i]<<std::endl;
-  }
- 
-  double test[4];
-  boostf(LAB,CMFp1,test);
-  for (int i=0; i<4; i++){
-    std::cout<<test[i]<<std::endl;
-    std::cout<<Fp1[i]<<std::endl;
-  }
-  //return retVals {cosCM, CME3};
-
-}
-
-
-void boostf( double A[4], double B[4], double X[4])
-{
-  //
-  //     boosts B(labfram) to A rest frame and gives output in X
-  //
-  double W;
-  int j;
-  
-  if ((A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3])<=0) { 
-    std::cout <<"negative sqrt in boostf"<<A[0]<<A[1]<<A[2]<<A[3]<<std::endl;}
-      
-  W=sqrt(A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3]);
-
-  if(W==0 || W==(-A[0])) std::cout <<"divid by 0 in boostf"<<std::endl;
-
-  X[0]=(B[0]*A[0]-B[3]*A[3]-B[2]*A[2]-B[1]*A[1])/W;
-    for(j=1; j<=3; j++) {
-      X[j]=B[j]-A[j]*(B[0]+X[0])/(A[0]+W);
-    } 
-  return;
-}
-
-
-
-
-double Vdot(double A[4],double B[4])
-{
-  int j;
-
-  double dot = 0;
-
-  for(j=1; j<=3; j++) {
-    dot = dot + A[j]*B[j];
-  }
-
-       
-  return dot;   
-}
-
-
-void Vunit(double A[4] ,double B[4])
-{
-  double fff;
-  int j;
-
-  fff = 0;
-  
-  for(j=1; j<=3; j++) {
-    fff = fff + A[j]*A[j];
-  }
-  
-  if (fff==0) {
-    std::cout <<"in vunit divid by zero" << std::endl;
-    return;
-  }
-  
-  for(j=1; j<=3; j++) {
-    B[j] = A[j]/sqrt(fff);
-  }
-  B[0] = 0;
-  
-  return;   
-}
-
-
-void Vcros(double A[4],double B[4],double C[4])
-{
-  C[1] = A[2]*B[3]-A[3]*B[2];
-  C[2] = A[3]*B[1]-A[1]*B[3];
-  C[3] = A[1]*B[2]-A[2]*B[1];
-  C[0] = 0;
-
-  if (C[1]==0 && C[2]==0 && C[3]==0.) { 
-    std::cout << "vcross zero" << std::endl;
-  }
-  
-  return;   
-}
-*/
-
-
-      //Author: Arik Kreisel
-
-
-void getMu_COM(double x_det , double y_det , double z_det ,Particle p_col , double awr ,double ReturnArray[],int diff_mode,double dl )
-{
-
-  double cs=0;
-  int m=0;
-  
-  double m1= p_col.getMass()/1e6; // mass of incoming particle in MeV
-  double E1_tot = p_col.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1);
-  double r1[4]  = {0, x_det, y_det, z_det};  // detector position lab {ignor, x, y, z}
-  double r2[4]= {0, p_col.r().x, p_col.r().y, p_col.r().z}; // collision position lab {ignor, x, y, z} 
-  double r3[4]; // r1-r2 vector from collision to detector
-  double m2= m1*awr; // mass of target matirial
-  double m3= m1; // mass of outgoing particle to detector  (rest mass?)
-  double m4= m2; // mass of recoil target  system
-  double p1[3]={p1_tot*p_col.u_last().x,p1_tot* p_col.u_last().y,p1_tot* p_col.u_last().z}; // 3 momentum of incoming particle
-  //p.v_t() * m2 / C_LIGHT;
-  std::cout << "p1:  "<< p1[0] <<" "<< p1[1]<<" " <<p1[2] <<std::endl;
-  std::cout << "p2:  "<< (p_col.v_t() * m2 / C_LIGHT).x <<" " <<(p_col.v_t() * m2 / C_LIGHT).y << " "<<(p_col.v_t() * m2 / C_LIGHT).z <<std::endl;
-  //std::cout << (p.v_t() * m2 / C_LIGHT).x << (p.v_t() * m2 / C_LIGHT).y << (p.v_t() * m2 / C_LIGHT).z <<std::endl;
-  double p2_x = (p_col.v_t() * m2 /C_LIGHT).x;
-  double p2_y = (p_col.v_t() * m2 /C_LIGHT).y;
-  double p2_z = (p_col.v_t() * m2 /C_LIGHT).z;
-  double p2[3]={p2_x, p2_y, p2_z}; //3 momentum of target in lab  
- 
-  // calculate
-  double Fp1[4]; //four momentum of incoming particle  in LAB 
-  double Fp2[4]; //four momentum of target in LAB
-  double Fp3[4]; //four momentum of particle going to the detector in LAB
-  double UFp3[4]; //unit 3  momentum of particle going to the detector
-  double CM[4]; //four momentum of center of mass frame in lab
-  double LAB[4]; //four momentum of lab in center of mass frame 
-  double mCM; // mass of center of mass system
-  double pCM; // momentum of center of mass system
-  double p3LAB[2]; // momentum of out particle
-  
-  double CMFp1[4]; //four momentum of incoming particle in CM  
-  double CMFp2[4]; //four momentum of incoming target in CM  
-  double CMFp3[4]; //four momentum of out particle in CM  
-  double CMFp4[4]; //four momentum of out target in CM  
-  double Fp4[4]; //four momentum of out target in LAB  
-  double CMUp1[4]; //unit three vector of incoming particle in CM  
-  double CMUp3[4]; //unit three vector of out particle in CM  
-  double cosCM; // cosine of out going particle to detector in CM frame
-  double cosLAB; // cosine of out going particle to detector in LAB frame
-  double CME3; // Energy of out particle in CM
-  double CMp3; // momentum of out particle in CM
-  double  Ur3[4], UCM[4], ULAB[4];
-  double aa, bb, cc;
-
-
-  Fp1[0]=0;
-  Fp2[0]=0;
-  CM[0]=0;
-  LAB[0]=0;
-  r3[0]=0;
-
-
-  for(int i=0; i<3; i++){
-    Fp1[i+1]=p1[i];
-    Fp2[i+1]=p2[i];
-    CM[i+1]=Fp1[i+1]+Fp2[i+1];
-    LAB[i+1]=-CM[i+1];
-    r3[i+1]=r1[i+1]-r2[i+1];
-  }
- 
-  Fp1[0]=sqrt(Fp1[1]*Fp1[1]+Fp1[2]*Fp1[2]+Fp1[3]*Fp1[3]+m1*m1);
-  Fp2[0]=sqrt(Fp2[1]*Fp2[1]+Fp2[2]*Fp2[2]+Fp2[3]*Fp2[3]+m2*m2);
-  CM[0]=Fp1[0]+Fp2[0];
-  LAB[0]=CM[0];
-  r3[0]=0;
-
-  mCM=sqrt(CM[0]*CM[0]-CM[1]*CM[1]-CM[2]*CM[2]-CM[3]*CM[3]);
-  pCM=sqrt(CM[1]*CM[1]+CM[2]*CM[2]+CM[3]*CM[3]);
-  CME3=(mCM*mCM-m4*m4+m3*m3)/(2*mCM); // energy of out going particle  in CM
-  CMp3=sqrt(CME3*CME3-m3*m3);
-
-  //std::cout<<" mCM= "<<mCM<<" pCM= "<<pCM<<" CME3= "<<CME3<<std::endl;
-
-  boostf(CM,Fp1,CMFp1);
-  boostf(CM,Fp2,CMFp2);
-
-  Vunit(CM,UCM); 
-  Vunit(LAB,ULAB); 
-  Vunit(r3,Ur3); 
-  cosLAB=Vdot(UCM,Ur3);
-  if (diff_mode == 1 && cosLAB+dl<=1)
-     {cosLAB = cosLAB+dl;}
-  if (diff_mode == -1 && cosLAB-dl>=-1)
-     {cosLAB = cosLAB-dl;} 
-
-  //std::cout<<"cosLAB=  "<<cosLAB<<std::endl;
-  Vunit(CMFp1,CMUp1);
-
-
-  aa=pCM*pCM*cosLAB*cosLAB-CM[0]*CM[0];
-  bb=2*pCM*cosLAB*CME3*mCM;
-  cc=CME3*mCM*CME3*mCM-m3*m3*CM[0]*CM[0];
-
-   int j=1;
-
-   if(bb*bb-4*aa*cc<0) {
-    //std::cout<<" detector out of range" <<std::endl;
-    return; //continue;
-  }
-   p3LAB[0]=(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa;
-   if(p3LAB[0]<=0) {p3LAB[0]=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-     if(p3LAB[0]<=0) {
-       std::cout<<" detector out of range" <<std::endl;
-       return; //continue;
-     }
-   }
-   else if(p3LAB[0]>0){p3LAB[1]=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-     if(p3LAB[1]>0) j=j+1;
-   }
-
-  //std::cout<<" p3LAB1= "<<(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa<<" p3LAB2= "<<(-bb-sqrt(bb*bb-4*aa*cc))/2.0/aa<<std::endl;
-
-  for (int l=0;l<j;l++){
-
-    //std::cout<<"l= "<<l<<std::endl;
-
-    Fp3[0]=sqrt(p3LAB[l]*p3LAB[l]+m3*m3);
-    for(int i=0; i<3; i++){
-      Fp3[i+1]=p3LAB[l]*Ur3[i+1];
-    }
-  
-    boostf(CM,Fp3,CMFp3);
-    Vunit(CMFp3,CMUp3); 
-    cosCM=Vdot(UCM,CMUp3); // input to openMC Cross section calculation
-    ReturnArray[l] = cosCM;
-    ReturnArray[l+2] = (Fp3[0]-m3)*1e6;  //retrun Energy in eV
-    /*
-    
-    std::cout<<" -----------  running diff mode: "<< diff_mode << " with dl = "<< dl <<" -----------------------------------"<<std::endl;
-    std::cout<<" -----------  sanity tests for solution "<< l <<" -----------------------------------"<<std::endl;
-    std::cout<<"cosCM= "<<cosCM<<std::endl;
-    Vunit(Fp3,UFp3); 
-    
-    std::cout<<Vdot(UCM,UFp3)<<" = cosLAB =  "<<cosLAB<<std::endl;
-
-    std::cout<<CMFp3[0]<<" m3 energy in CM  "<<CME3<<std::endl;
-    
-    CMFp4[0]=0;
-    for(int i=0; i<3; i++){
-      CMFp4[i+1]=-CMFp3[i+1];
-    }
-    CMFp4[0]=sqrt(m4*m4+CMFp4[1]*CMFp4[1]+CMFp4[2]*CMFp4[2]+CMFp4[3]*CMFp4[3]);
-    boostf(LAB,CMFp4,Fp4);
-  
-    for(int i=0; i<4; i++){
-      std::cout<<i<<"  "<<CM[i]<<" = energy momentum conserv in LAB = "<<Fp4[i]+Fp3[i]<<std::endl;
-      std::cout<<i<<"  "<<CMFp1[i]+CMFp2[i]<<" = energy momentum conserv in CM = "<<CMFp4[i]+CMFp3[i]<<std::endl;
-    }
-
-
- 
-    double test[4];
-    boostf(LAB,CMFp3,test);
-    for (int i=0; i<4; i++){
-      std::cout<<i<<"  "<<test[i]<<std::endl;
-      std::cout<<i<<"  "<<Fp3[i]<<std::endl;
-    }
-    
-    std::cout <<" m3 enerrgy in lab ="<<Fp3[0]<<std::endl;
-    std::cout <<" m4 enerrgy in lab ="<<Fp4[0]<<std::endl;
-    std::cout <<" sqrt(E3^2-P3^2) in lab ="<<sqrt(Fp3[0]*Fp3[0]-Fp3[1]*Fp3[1]-Fp3[2]*Fp3[2]-Fp3[3]*Fp3[3])<<std::endl;
-    std::cout <<" sqrt(E4^2-P4^2) in lab ="<<sqrt(Fp4[0]*Fp4[0]-Fp4[1]*Fp4[1]-Fp4[2]*Fp4[2]-Fp4[3]*Fp4[3])<<std::endl;
-    std::cout <<" m1 enerrgy in lab ="<<Fp1[0]<<std::endl;
-
-    double tanLab=sqrt(1-cosCM*cosCM)/(CM[0]/mCM*(pCM*CME3/CM[0]/CMp3+cosCM));
-    double fCOSlab=cos(atan(tanLab));
-    
-
-    std::cout<<"cos( atan( tanLab= "<<cos(atan(tanLab))<<std::endl;
-    */
-  }
-  
- }
-
-
 void boostf( double A[4], double B[4], double X[4])
 {
   //
@@ -3348,581 +2825,6 @@ void boostf( double A[4], double B[4], double X[4])
     } 
 
   return;
-}
-
-
-
-
-double Vdot(double A[4],double B[4])
-{
-  int j;
-
-  double dot = 0;
-
-  for(j=1; j<=3; j++) {
-    dot = dot + A[j]*B[j];
-  }
-
-       
-  return dot;   
-}
-
-
-void Vunit(double A[4] ,double B[4])
-{
-  double fff;
-  int j;
-
-  fff = 0;
-  
-  for(j=1; j<=3; j++) {
-    fff = fff + A[j]*A[j];
-  }
-  
-  if (fff==0) {
-    std::cout <<"in vunit divid by zero" << std::endl;
-    return;
-  }
-  
-  for(j=1; j<=3; j++) {
-    B[j] = A[j]/sqrt(fff);
-  }
-  B[0] = 0;
-  
-  return;   
-}
-
-
-void Vcros(double A[4],double B[4],double C[4])
-{
-  C[1] = A[2]*B[3]-A[3]*B[2];
-  C[2] = A[3]*B[1]-A[1]*B[3];
-  C[3] = A[1]*B[2]-A[2]*B[1];
-  C[0] = 0;
-
-  if (C[1]==0 && C[2]==0 && C[3]==0.) { 
-    std::cout << "vcross zero" << std::endl;
-  }
-  
-  return;   
-}
-
-
-
-
-
-/*
-
-
-void getMu_COM(double x_det , double y_det , double z_det ,Particle p_col , double awr , double incoming_mass ,double ReturnArray[],int diff_mode,double dl )
-{
-  //double inv_gamma = p_col.getMass()/ (p_col.E_last() + p_col.getMass());
-  //double p_momentum =  (1/inv_gamma)*(p_col.getMass() / 1e9 )*std::sqrt(1 - inv_gamma * inv_gamma); // GeV/c
-  //struct retVals { int i1, i2; }; // Declare a local structure
-  double m1= p_col.getMass()/1e6; // mass of incoming particle in MeV
-  double E1_tot = p_col.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1);
-  //return retVals {10, 20};
-  // std::cout<<"  p col "<<p_col<<std::endl;
-  // double r1[4];
-
-  
-  //r1[0] = 0;
-  //r1[1] = x_det;
-  //r1[2] = y_det;
-  //r1[3] = z_det;
-
-  //for (int i = 0; i < 4; i++)
-   // {std::cout << r1[i];}
-  double r1[4]  = {0, x_det, y_det, z_det};  // detector position lab {ignor, x, y, z}
-  double r2[4]= {0, p_col.r().x, p_col.r().y, p_col.r().z}; // collision position lab {ignor, x, y, z} 
-  double r3[4]; // r1-r2 vector from collision to detector
-  double m2= m1*awr; // mass of target matirial
-  std::cout <<"m2 = "<<m2<<std::endl;
-  double m3= m1; // mass of outgoing particle to detector //
-  double m4= m2; // mass of recoil target  system
-  double p1[3]={p1_tot*p_col.u_last().x,p1_tot* p_col.u_last().y,p1_tot* p_col.u_last().z}; // 3 momentum of incoming particle
-  double p2[3]={0, 0, 0}; //3 momentum of target in lab // need seed from openmc
-  for (int i = 0; i < 4; i++)
-    {std::cout <<"r1 "<<i<<" "<< r1[i] <<"  ";}
-  std::cout <<std::endl;
-  //std::raise(SIGTRAP);
-  for (int i = 0; i < 4; i++)
-    {std::cout <<"r2 "<<i<<" "<< r2[i] <<"  ";}
-  std::cout <<std::endl;
-
-
-  
-    // calculate
-  double Fp1[4]; //four momentum of incoming particle  
-  double Fp2[4]; //four momentum of target
-  double Fp3[4]; //four momentum of particle going to the detector
-  double UFp3[4]; //unit 3  momentum of particle going to the detector
-  double CM[4]; //four momentum of center of mass frame in lab
-  double LAB[4]; //four momentum of lab in center of mass frame 
-  double mCM; // mass of center of mass system
-  double pCM; // momentum of center of mass system
-  double p3LAB; // momentum of out particle
-  
-  double CMFp1[4]; //four momentum of incoming particle in CM  
-  double CMFp3[4]; //four momentum of out particle in CM  
-  double CMFp4[4]; //four momentum of out target in CM  
-  double Fp4[4]; //four momentum of out target in LAB  
-  double CMUp1[4]; //unit three vector of incoming particle in CM  
-  double CMUp3[4]; //unit three vector of out particle in CM  
-  double cosCM; // cosine of out going particle to detector in CM frame
-  double cosLAB; // cosine of out going particle to detector in LAB frame
-  double CME3; // Energy of out particle in CM
-  double CMp3; // momentum of out particle in CM
-  double Ur3[4], UCM[4];
-  double aa, bb, cc;
-  //double ReturnArray[2];
-  
-  
-
-  Fp1[0]=0;
-  Fp2[0]=0;
-  CM[0]=0;
-  LAB[0]=0;
-  r3[0]=0;
-
-
-  for(int i=0; i<3; i++){
-    Fp1[i+1]=p1[i];
-    Fp2[i+1]=p2[i];
-    CM[i+1]=Fp1[i+1]+Fp2[i+1];
-    LAB[i+1]=-CM[i+1];
-    r3[i+1]=r1[i+1]-r2[i+1];
-  }
- 
-  Fp1[0]=sqrt(Fp1[1]*Fp1[1]+Fp1[2]*Fp1[2]+Fp1[3]*Fp1[3]+m1*m1);
-  Fp2[0]=sqrt(Fp2[1]*Fp2[1]+Fp2[2]*Fp2[2]+Fp2[3]*Fp2[3]+m2*m2);
-  CM[0]=Fp1[0]+Fp2[0];
-  LAB[0]=CM[0];
-  r3[0]=0;
-
-  mCM=sqrt(CM[0]*CM[0]-CM[1]*CM[1]-CM[2]*CM[2]-CM[3]*CM[3]);
-  pCM=sqrt(CM[1]*CM[1]+CM[2]*CM[2]+CM[3]*CM[3]);
-  CME3=(mCM*mCM-m4*m4+m3*m3)/(2*mCM); // energy of out going particle  in CM
-  CMp3=sqrt(CME3*CME3-m3*m3);
-  
-  std::cout<<mCM<<"  "<<pCM<<"  "<<CME3<<std::endl;
-
-  boostf(CM,Fp1,CMFp1);
-  double diff = 1;
-  Vunit(CM,UCM); 
-  Vunit(r3,Ur3); 
-  cosLAB=Vdot(UCM,Ur3);
-  if (diff_mode == 1 && cosLAB+dl<=1)
-     {cosLAB = cosLAB+dl;}
-  if (diff_mode == -1 && cosLAB-dl>=-1)
-     {cosLAB = cosLAB-dl;} 
-  std::cout<<"cosLAB=  "<<cosLAB<<std::endl;
-  Vunit(CMFp1,CMUp1);
-
-
-  aa=pCM*pCM*cosLAB*cosLAB-CM[0]*CM[0];
-  bb=2*pCM*cosLAB*CME3*mCM;
-  cc=CME3*mCM*CME3*mCM-m3*m3*CM[0]*CM[0];
-
-  p3LAB=0;
-  p3LAB=(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa;
-  if(p3LAB<=0) p3LAB=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-  if(p3LAB<=0) {
-    std::cout<<" detector out of range" <<std::endl;
-    //return -1;
-  }
-
-
-  std::cout<<"p3LAB= "<<p3LAB<<std::endl;
-
-  Fp3[0]=sqrt(p3LAB*p3LAB+m3*m3);
-  for(int i=0; i<3; i++){
-    Fp3[i+1]=p3LAB*Ur3[i+1];
-  }
-  
-  boostf(CM,Fp3,CMFp3);
-  Vunit(CMFp3,CMUp3); 
-  cosCM=Vdot(UCM,CMUp3);
-
-  std::cout<<"cosCM= "<<cosCM<<std::endl;
-  ReturnArray[0] = cosCM;
-  ReturnArray[1] = (Fp3[0]-m3)*1e6;  //retrun Energy in eV
-  
-
-  std::cout<<" -----------  sanity tests ----------------------------------"<<std::endl;
- 
- Vunit(Fp3,UFp3); 
-
-  std::cout<<Vdot(UCM,UFp3)<<" = cosLAB =  "<<cosLAB<<std::endl;
-
-  std::cout<<CMFp3[0]<<" m3 energy in CM  "<<CME3<<std::endl;
-
-  CMFp4[0]=0;
-  for(int i=0; i<3; i++){
-    CMFp4[i+1]=-CMFp3[i+1];
-  }
-  CMFp4[0]=sqrt(m4*m4+CMFp4[1]*CMFp4[1]+CMFp4[2]*CMFp4[2]+CMFp4[3]*CMFp4[3]);
-  boostf(LAB,CMFp4,Fp4);
-
-  for(int i=0; i<4; i++){
-    std::cout<<CM[i]<<" = energy momentum conserv in LAB = "<<Fp4[i]+Fp3[i]<<std::endl;
-  }
- 
-  double test[4];
-  boostf(LAB,CMFp1,test);
-  for (int i=0; i<4; i++){
-    std::cout<<test[i]<<std::endl;
-    std::cout<<Fp1[i]<<std::endl;
-  }
-  //return retVals {cosCM, CME3};
-
-}
-
-
-void boostf( double A[4], double B[4], double X[4])
-{
-  //
-  //     boosts B(labfram) to A rest frame and gives output in X
-  //
-  double W;
-  int j;
-  
-  if ((A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3])<=0) { 
-    std::cout <<"negative sqrt in boostf"<<A[0]<<A[1]<<A[2]<<A[3]<<std::endl;}
-      
-  W=sqrt(A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3]);
-
-  if(W==0 || W==(-A[0])) std::cout <<"divid by 0 in boostf"<<std::endl;
-
-  X[0]=(B[0]*A[0]-B[3]*A[3]-B[2]*A[2]-B[1]*A[1])/W;
-    for(j=1; j<=3; j++) {
-      X[j]=B[j]-A[j]*(B[0]+X[0])/(A[0]+W);
-    } 
-  return;
-}
-
-
-
-
-double Vdot(double A[4],double B[4])
-{
-  int j;
-
-  double dot = 0;
-
-  for(j=1; j<=3; j++) {
-    dot = dot + A[j]*B[j];
-  }
-
-       
-  return dot;   
-}
-
-
-void Vunit(double A[4] ,double B[4])
-{
-  double fff;
-  int j;
-
-  fff = 0;
-  
-  for(j=1; j<=3; j++) {
-    fff = fff + A[j]*A[j];
-  }
-  
-  if (fff==0) {
-    std::cout <<"in vunit divid by zero" << std::endl;
-    return;
-  }
-  
-  for(j=1; j<=3; j++) {
-    B[j] = A[j]/sqrt(fff);
-  }
-  B[0] = 0;
-  
-  return;   
-}
-
-
-void Vcros(double A[4],double B[4],double C[4])
-{
-  C[1] = A[2]*B[3]-A[3]*B[2];
-  C[2] = A[3]*B[1]-A[1]*B[3];
-  C[3] = A[1]*B[2]-A[2]*B[1];
-  C[0] = 0;
-
-  if (C[1]==0 && C[2]==0 && C[3]==0.) { 
-    std::cout << "vcross zero" << std::endl;
-  }
-  
-  return;   
-}
-*/
-
-
-      //Author: Arik Kreisel
-
-
-void getMu_COM(double x_det , double y_det , double z_det ,Particle p_col , double awr ,double ReturnArray[],int diff_mode,double dl )
-{
-
-  double cs=0;
-  int m=0;
-  
-  double m1= p_col.getMass()/1e6; // mass of incoming particle in MeV
-  double E1_tot = p_col.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1);
-  double r1[4]  = {0, x_det, y_det, z_det};  // detector position lab {ignor, x, y, z}
-  double r2[4]= {0, p_col.r().x, p_col.r().y, p_col.r().z}; // collision position lab {ignor, x, y, z} 
-  double r3[4]; // r1-r2 vector from collision to detector
-  double m2= m1*awr; // mass of target matirial
-  double m3= m1; // mass of outgoing particle to detector  (rest mass?)
-  double m4= m2; // mass of recoil target  system
-  double p1[3]={p1_tot*p_col.u_last().x,p1_tot* p_col.u_last().y,p1_tot* p_col.u_last().z}; // 3 momentum of incoming particle
-  //p.v_t() * m2 / C_LIGHT;
-  std::cout << "p1:  "<< p1[0] <<" "<< p1[1]<<" " <<p1[2] <<std::endl;
-  std::cout << "p2:  "<< (p_col.v_t() * m2 / C_LIGHT).x <<" " <<(p_col.v_t() * m2 / C_LIGHT).y << " "<<(p_col.v_t() * m2 / C_LIGHT).z <<std::endl;
-  //std::cout << (p.v_t() * m2 / C_LIGHT).x << (p.v_t() * m2 / C_LIGHT).y << (p.v_t() * m2 / C_LIGHT).z <<std::endl;
-  double p2_x = (p_col.v_t() * m2 /C_LIGHT).x;
-  double p2_y = (p_col.v_t() * m2 /C_LIGHT).y;
-  double p2_z = (p_col.v_t() * m2 /C_LIGHT).z;
-  double p2[3]={p2_x, p2_y, p2_z}; //3 momentum of target in lab  
- 
-  // calculate
-  double Fp1[4]; //four momentum of incoming particle  in LAB 
-  double Fp2[4]; //four momentum of target in LAB
-  double Fp3[4]; //four momentum of particle going to the detector in LAB
-  double UFp3[4]; //unit 3  momentum of particle going to the detector
-  double CM[4]; //four momentum of center of mass frame in lab
-  double LAB[4]; //four momentum of lab in center of mass frame 
-  double mCM; // mass of center of mass system
-  double pCM; // momentum of center of mass system
-  double p3LAB[2]; // momentum of out particle
-  
-  double CMFp1[4]; //four momentum of incoming particle in CM  
-  double CMFp2[4]; //four momentum of incoming target in CM  
-  double CMFp3[4]; //four momentum of out particle in CM  
-  double CMFp4[4]; //four momentum of out target in CM  
-  double Fp4[4]; //four momentum of out target in LAB  
-  double CMUp1[4]; //unit three vector of incoming particle in CM  
-  double CMUp3[4]; //unit three vector of out particle in CM  
-  double cosCM; // cosine of out going particle to detector in CM frame
-  double cosLAB; // cosine of out going particle to detector in LAB frame
-  double CME3; // Energy of out particle in CM
-  double CMp3; // momentum of out particle in CM
-  double  Ur3[4], UCM[4], ULAB[4];
-  double aa, bb, cc;
-
-
-  Fp1[0]=0;
-  Fp2[0]=0;
-  CM[0]=0;
-  LAB[0]=0;
-  r3[0]=0;
-
-
-  for(int i=0; i<3; i++){
-    Fp1[i+1]=p1[i];
-    Fp2[i+1]=p2[i];
-    CM[i+1]=Fp1[i+1]+Fp2[i+1];
-    LAB[i+1]=-CM[i+1];
-    r3[i+1]=r1[i+1]-r2[i+1];
-  }
- 
-  Fp1[0]=sqrt(Fp1[1]*Fp1[1]+Fp1[2]*Fp1[2]+Fp1[3]*Fp1[3]+m1*m1);
-  Fp2[0]=sqrt(Fp2[1]*Fp2[1]+Fp2[2]*Fp2[2]+Fp2[3]*Fp2[3]+m2*m2);
-  CM[0]=Fp1[0]+Fp2[0];
-  LAB[0]=CM[0];
-  r3[0]=0;
-
-  mCM=sqrt(CM[0]*CM[0]-CM[1]*CM[1]-CM[2]*CM[2]-CM[3]*CM[3]);
-  pCM=sqrt(CM[1]*CM[1]+CM[2]*CM[2]+CM[3]*CM[3]);
-  CME3=(mCM*mCM-m4*m4+m3*m3)/(2*mCM); // energy of out going particle  in CM
-  CMp3=sqrt(CME3*CME3-m3*m3);
-
-  //std::cout<<" mCM= "<<mCM<<" pCM= "<<pCM<<" CME3= "<<CME3<<std::endl;
-
-  boostf(CM,Fp1,CMFp1);
-  boostf(CM,Fp2,CMFp2);
-
-  Vunit(CM,UCM); 
-  Vunit(LAB,ULAB); 
-  Vunit(r3,Ur3); 
-  cosLAB=Vdot(UCM,Ur3);
-  if (diff_mode == 1 && cosLAB+dl<=1)
-     {cosLAB = cosLAB+dl;}
-  if (diff_mode == -1 && cosLAB-dl>=-1)
-     {cosLAB = cosLAB-dl;} 
-
-  //std::cout<<"cosLAB=  "<<cosLAB<<std::endl;
-  Vunit(CMFp1,CMUp1);
-
-
-  aa=pCM*pCM*cosLAB*cosLAB-CM[0]*CM[0];
-  bb=2*pCM*cosLAB*CME3*mCM;
-  cc=CME3*mCM*CME3*mCM-m3*m3*CM[0]*CM[0];
-
-   int j=1;
-
-   if(bb*bb-4*aa*cc<0) {
-    //std::cout<<" detector out of range" <<std::endl;
-    return; //continue;
-  }
-   p3LAB[0]=(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa;
-   if(p3LAB[0]<=0) {p3LAB[0]=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-     if(p3LAB[0]<=0) {
-       std::cout<<" detector out of range" <<std::endl;
-       return; //continue;
-     }
-   }
-   else if(p3LAB[0]>0){p3LAB[1]=(-bb-sqrt(bb*bb-4*aa*cc))/2/aa;
-     if(p3LAB[1]>0) j=j+1;
-   }
-
-  //std::cout<<" p3LAB1= "<<(-bb+sqrt(bb*bb-4*aa*cc))/2.0/aa<<" p3LAB2= "<<(-bb-sqrt(bb*bb-4*aa*cc))/2.0/aa<<std::endl;
-
-  for (int l=0;l<j;l++){
-
-    //std::cout<<"l= "<<l<<std::endl;
-
-    Fp3[0]=sqrt(p3LAB[l]*p3LAB[l]+m3*m3);
-    for(int i=0; i<3; i++){
-      Fp3[i+1]=p3LAB[l]*Ur3[i+1];
-    }
-  
-    boostf(CM,Fp3,CMFp3);
-    Vunit(CMFp3,CMUp3); 
-    cosCM=Vdot(UCM,CMUp3); // input to openMC Cross section calculation
-    ReturnArray[l] = cosCM;
-    ReturnArray[l+2] = (Fp3[0]-m3)*1e6;  //retrun Energy in eV
-    /*
-    
-    std::cout<<" -----------  running diff mode: "<< diff_mode << " with dl = "<< dl <<" -----------------------------------"<<std::endl;
-    std::cout<<" -----------  sanity tests for solution "<< l <<" -----------------------------------"<<std::endl;
-    std::cout<<"cosCM= "<<cosCM<<std::endl;
-    Vunit(Fp3,UFp3); 
-    
-    std::cout<<Vdot(UCM,UFp3)<<" = cosLAB =  "<<cosLAB<<std::endl;
-
-    std::cout<<CMFp3[0]<<" m3 energy in CM  "<<CME3<<std::endl;
-    
-    CMFp4[0]=0;
-    for(int i=0; i<3; i++){
-      CMFp4[i+1]=-CMFp3[i+1];
-    }
-    CMFp4[0]=sqrt(m4*m4+CMFp4[1]*CMFp4[1]+CMFp4[2]*CMFp4[2]+CMFp4[3]*CMFp4[3]);
-    boostf(LAB,CMFp4,Fp4);
-  
-    for(int i=0; i<4; i++){
-      std::cout<<i<<"  "<<CM[i]<<" = energy momentum conserv in LAB = "<<Fp4[i]+Fp3[i]<<std::endl;
-      std::cout<<i<<"  "<<CMFp1[i]+CMFp2[i]<<" = energy momentum conserv in CM = "<<CMFp4[i]+CMFp3[i]<<std::endl;
-    }
-
-
- 
-    double test[4];
-    boostf(LAB,CMFp3,test);
-    for (int i=0; i<4; i++){
-      std::cout<<i<<"  "<<test[i]<<std::endl;
-      std::cout<<i<<"  "<<Fp3[i]<<std::endl;
-    }
-    
-    std::cout <<" m3 enerrgy in lab ="<<Fp3[0]<<std::endl;
-    std::cout <<" m4 enerrgy in lab ="<<Fp4[0]<<std::endl;
-    std::cout <<" sqrt(E3^2-P3^2) in lab ="<<sqrt(Fp3[0]*Fp3[0]-Fp3[1]*Fp3[1]-Fp3[2]*Fp3[2]-Fp3[3]*Fp3[3])<<std::endl;
-    std::cout <<" sqrt(E4^2-P4^2) in lab ="<<sqrt(Fp4[0]*Fp4[0]-Fp4[1]*Fp4[1]-Fp4[2]*Fp4[2]-Fp4[3]*Fp4[3])<<std::endl;
-    std::cout <<" m1 enerrgy in lab ="<<Fp1[0]<<std::endl;
-
-    double tanLab=sqrt(1-cosCM*cosCM)/(CM[0]/mCM*(pCM*CME3/CM[0]/CMp3+cosCM));
-    double fCOSlab=cos(atan(tanLab));
-    
-
-    std::cout<<"cos( atan( tanLab= "<<cos(atan(tanLab))<<std::endl;
-    */
-  }
-  
- }
-
-
-void boostf( double A[4], double B[4], double X[4])
-{
-  //
-  //     boosts B(labfram) to A rest frame and gives output in X
-  //
-  double W;
-  int j;
-  
-  if ((A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3])<=0) { 
-    std::cout <<"negative sqrt in boostf"<<A[0]<<A[1]<<A[2]<<A[3]<<std::endl;}
-      
-  W=sqrt(A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3]);
-
-  if(W==0 || W==(-A[0])) std::cout <<"divid by 0 in boostf"<<std::endl;
-
-  X[0]=(B[0]*A[0]-B[3]*A[3]-B[2]*A[2]-B[1]*A[1])/W;
-    for(j=1; j<=3; j++) {
-      X[j]=B[j]-A[j]*(B[0]+X[0])/(A[0]+W);
-    } 
-
-  return;
-}
-
-
-
-
-double Vdot(double A[4],double B[4])
-{
-  int j;
-
-  double dot = 0;
-
-  for(j=1; j<=3; j++) {
-    dot = dot + A[j]*B[j];
-  }
-
-       
-  return dot;   
-}
-
-
-void Vunit(double A[4] ,double B[4])
-{
-  double fff;
-  int j;
-
-  fff = 0;
-  
-  for(j=1; j<=3; j++) {
-    fff = fff + A[j]*A[j];
-  }
-  
-  if (fff==0) {
-    std::cout <<"in vunit divid by zero" << std::endl;
-    return;
-  }
-  
-  for(j=1; j<=3; j++) {
-    B[j] = A[j]/sqrt(fff);
-  }
-  B[0] = 0;
-  
-  return;   
-}
-
-
-void Vcros(double A[4],double B[4],double C[4])
-{
-  C[1] = A[2]*B[3]-A[3]*B[2];
-  C[2] = A[3]*B[1]-A[1]*B[3];
-  C[3] = A[1]*B[2]-A[2]*B[1];
-  C[0] = 0;
-
-  if (C[1]==0 && C[2]==0 && C[3]==0.) { 
-    std::cout << "vcross zero" << std::endl;
-  }
-  
-  return;   
 }
 
 

@@ -55,6 +55,10 @@ public:
 
   void set_nuclides(const vector<std::string>& nuclides);
 
+  void set_positions(pugi::xml_node node);
+
+  void set_positions(const vector<std::string>& positions);
+
   const xt::xtensor<double, 3>& results() const { return results_; }
 
   //! returns vector of indices corresponding to the tally this is called on
@@ -150,6 +154,9 @@ public:
   int n_realizations_ {0};
 
   vector<int> scores_; //!< Filter integrands (e.g. flux, fission)
+
+  //! Index of each pos to be tallied.
+  vector<std::string> positions_;
 
   //! Index of each nuclide to be tallied.  -1 indicates total material.
   vector<int> nuclides_ {-1};
