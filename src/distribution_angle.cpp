@@ -95,7 +95,7 @@ double AngleDistribution::sample(double E, uint64_t* seed) const
   return mu;
 }
 
-double AngleDistribution::get_pdf_value(double E,double mu, uint64_t* seed) const
+double AngleDistribution::get_pdf(double E,double mu, uint64_t* seed) const
 {
   // Determine number of incoming energies
   auto n = energy_.size();
@@ -120,7 +120,7 @@ double AngleDistribution::get_pdf_value(double E,double mu, uint64_t* seed) cons
     ++i;
 
   // Sample i-th distribution
-  double pdf = distribution_[i]->get_pdf_value(mu,seed);
+  double pdf = distribution_[i]->get_pdf(mu,seed);
 
   // Make sure pdf > 0 and return
   if (std::abs(pdf) < 0)

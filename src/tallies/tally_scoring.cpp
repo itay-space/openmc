@@ -22,6 +22,7 @@
 #include "openmc/tallies/filter_energy.h"
 #include "openmc/distribution_multi.h"
 #include "openmc/secondary_uncorrelated.h"
+#include "openmc/secondary_correlated.h"
 #include "openmc/geometry.h"
 //#include "/home/open_mc/openmc/src/tallies/MyCalcs.cpp"
 #include <typeinfo>
@@ -2512,7 +2513,7 @@ void score_point_tally(Particle& p)
   
   // Get position (x,y,z) of detector
   //
-  double det_pos[3];
+  double det_pos[3] = {0,0,0};
 
 
 
@@ -2596,7 +2597,7 @@ void score_point_tally(Particle& p)
     double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
     double E3cm_1 = std::sqrt(p3cm_tot_1*p3cm_tot_1 + m3*m3);
     double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);
-    double pdf1cm = d_->angle().get_pdf_value(p.E_last(),mucm_1,p.current_seed()); 
+    double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed()); 
     double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
     double q1 = (p_tot_cm / E_cm) * (E3cm_1 / p3cm_tot_1);
     double sincm1 = std::sqrt(1-mucm03_1*mucm03_1);
@@ -2652,7 +2653,7 @@ void score_point_tally(Particle& p)
       double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
       double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
       double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
-      double pdf2cm = d_->angle().get_pdf_value(p.E_last(),mucm_2,p.current_seed()); 
+      double pdf2cm = d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed()); 
       double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
       double q2 = (p_tot_cm / E_cm) * (E3cm_2 / p3cm_tot_2);
       double sincm2 = std::sqrt(1-mucm03_2*mucm03_2);
@@ -2698,12 +2699,22 @@ void score_point_tally(Particle& p)
 
   flux = flux1 + flux2;
 
-  if (p.type() != ParticleType::neutron) {
-    if(p.event_mt() != 2)
-    {
+  if ((p.type() != ParticleType::neutron) || (p.event_mt() != 2) )
+  {
       flux = 0;
-    }
   }
+
+ if (p.event_mt() != 2){
+  std::cout << "my mt  "<< p.event_mt() <<std::endl;
+  const auto& rx {nuc->reactions_[0]};
+  auto& d = rx->products_[0].distribution_[0];
+  //d.get() //-> bla() //.get()->bla()
+  //auto d_ = dynamic_cast<CorrelatedAngleEnergy*>(d.get());
+  //double or1 = d_->angle().get_pdf_value(0,0,p.current_seed());
+  //std::cout << "or:  "<< or1 <<std::endl;
+  
+ }
+
 
 
   for (auto i_tally : model::active_point_tallies) {

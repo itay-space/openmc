@@ -133,9 +133,28 @@ Discrete::Discrete(const double* x, const double* p, int n) : di_(p, n)
   x_.assign(x, x + n);
 }
 
+
+
+
 double Discrete::sample(uint64_t* seed) const
 {
   return x_[di_.sample(seed)];
+}
+
+double Discrete::get_pdf(double x,uint64_t* seed) const {
+    // Check if x is outside the range of possible outcomes
+    if (x < x_.front() || x > x_.back()) {
+        return 0.0;  // x is outside the valid range
+    }
+
+    // Find the index of the bin that x falls into
+    auto it = std::upper_bound(x_.begin(), x_.end(), x);
+    size_t index = std::distance(x_.begin(), it);
+
+    // Use the index to get the corresponding probability from DiscreteIndex
+    double p = di_.prob()[index];
+
+    return p;
 }
 
 //==============================================================================
@@ -157,6 +176,10 @@ Uniform::Uniform(pugi::xml_node node)
 double Uniform::sample(uint64_t* seed) const
 {
   return a_ + prn(seed) * (b_ - a_);
+}
+double Uniform::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
 }
 
 //==============================================================================
@@ -184,6 +207,10 @@ double PowerLaw::sample(uint64_t* seed) const
 {
   return std::pow(offset_ + prn(seed) * span_, ninv_);
 }
+double PowerLaw::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
+}
 
 //==============================================================================
 // Maxwell implementation
@@ -197,6 +224,10 @@ Maxwell::Maxwell(pugi::xml_node node)
 double Maxwell::sample(uint64_t* seed) const
 {
   return maxwell_spectrum(theta_, seed);
+}
+double Maxwell::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
 }
 
 //==============================================================================
@@ -218,6 +249,10 @@ double Watt::sample(uint64_t* seed) const
 {
   return watt_spectrum(a_, b_, seed);
 }
+double Watt::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
+}
 
 //==============================================================================
 // Normal implementation
@@ -237,6 +272,10 @@ Normal::Normal(pugi::xml_node node)
 double Normal::sample(uint64_t* seed) const
 {
   return normal_variate(mean_value_, std_dev_, seed);
+}
+double Normal::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
 }
 
 //==============================================================================
@@ -355,7 +394,7 @@ double Tabular::sample(uint64_t* seed) const
   }
 }
 
-double Tabular::get_pdf_value(double x,uint64_t* seed) const
+double Tabular::get_pdf(double x,uint64_t* seed) const
 {
   // get PDF value at x 
 
@@ -406,6 +445,11 @@ double Equiprobable::sample(uint64_t* seed) const
   double xr = x_[i + i];
   return xl + ((n - 1) * r - i) * (xr - xl);
 }
+double Equiprobable::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
+}
+
 
 //==============================================================================
 // Mixture implementation
@@ -451,6 +495,10 @@ double Mixture::sample(uint64_t* seed) const
 
   // Sample the chosen distribution
   return it->second->sample(seed);
+}
+double Mixture::get_pdf(double x,uint64_t* seed) const 
+{
+  return -1;
 }
 
 //==============================================================================

@@ -176,6 +176,103 @@ void Particle::from_source(const SourceSite* src)
   //fmt::print("u_last = {0} , {1} , {2}\n",u_last().x,u_last().y,u_last().z);
   //fmt::print("pos = {0} , {1} , {2}\n",r().x,r().y,r().z);
 
+  // Get position (x,y,z) of detector
+  //
+  double det_pos[3] = {0,0,0};
+
+
+
+  for (auto i_tally : model::active_point_tallies) 
+  {
+    const Tally& tally {*model::tallies[i_tally]};
+    for (auto i = 0; i < tally.positions_.size(); ++i)
+       {
+        if (tally.positions_.size() > 1) {
+        auto pos_coord = tally.positions_[i];
+        det_pos[i] = std::stod(pos_coord);
+        }
+        fmt::print("pos COORD = {0} \n" ,det_pos[i] );
+         }
+  }
+
+ Direction u_lab {det_pos[0]-r().x,  // towards the detector
+                   det_pos[1]-r().y,
+                   det_pos[2]-r().z};
+Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
+
+fmt::print("ulab = {0} , {1} , {2}\n",u_lab.x,u_lab.y,u_lab.z);
+//
+//Get the angle distribution
+double pdf_mu_det=0;
+Source& mysource = *(model::external_sources[0]);
+
+
+// Check if the actual type is IndependentSource
+
+if (auto* independentSource = dynamic_cast<IndependentSource*>(&mysource)) 
+
+{
+    
+    UnitSphereDistribution* angleDistribution = independentSource->angle();
+
+
+if (angleDistribution) 
+{
+  Direction my_u_ref = angleDistribution->u_ref_;
+  Direction my_u_ref_unit = my_u_ref/my_u_ref.norm();
+
+    if (typeid(*angleDistribution) == typeid(PolarAzimuthal))
+     {
+        // angleDistribution is an instance of PolarAzimuthal
+        double my_det_mu = my_u_ref_unit.dot(u_lab_unit);
+        auto* polarAzimuthalDistribution = dynamic_cast<PolarAzimuthal*>(angleDistribution);
+        Distribution* muDistribution = polarAzimuthalDistribution->mu();
+       //
+
+        std::cout << "Polar "  << std::endl;
+    } 
+
+    else if (typeid(*angleDistribution) == typeid(Isotropic)) 
+    {
+        // angleDistribution is an instance of Isotropic
+        pdf_mu_det= 1/(2*u_lab.norm()*u_lab.norm()); //without 2pi of phi
+        std::cout << "Iso "  << std::endl;
+    } 
+
+    else if (typeid(*angleDistribution) == typeid(Monodirectional)) 
+    {
+        // angleDistribution is an instance of Monodirectional
+        if (my_u_ref_unit.dot(u_lab_unit) == 1) 
+          {
+          pdf_mu_det=1;
+          }
+        std::cout << "Pencil "  << std::endl;
+
+    } 
+
+    else {
+        std::cout << "angleDistribution is of an unexpected type "  << std::endl;
+            }
+} 
+else {
+    std::cout << "angleDistribution is nullptr "  << std::endl;
+    }
+
+
+
+
+    //std::cout << "Yay "  << std::endl;
+    //Direction my_u_ref = angleDistribution->u_ref_;
+
+    //fmt::print("uref = {0} , {1} , {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
+    
+} 
+
+
+// Direction my_u_ref = angleDistribution->u_ref_;
+//fmt::print("uref = {0} , {1} , {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
+
+
 }
 
 void Particle::event_calculate_xs()
