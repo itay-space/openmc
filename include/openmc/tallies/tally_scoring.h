@@ -74,6 +74,7 @@ void score_collision_tally(Particle& p);
 //
 //! \param p The particle being tracked
 void score_point_tally(Particle& p);
+void score_point_tally_from_source(const SourceSite* src);
 
 Position GetRotVector(double phi ,Position u_lab ,Position k );
 
