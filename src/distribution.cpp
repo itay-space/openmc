@@ -215,7 +215,7 @@ double PowerLaw::sample(uint64_t* seed) const
 }
 double PowerLaw::get_pdf(double x) const 
 {
-  return -1;
+  return x / span_ / ninv_  ;
 }
 
 //==============================================================================
@@ -281,7 +281,9 @@ double Normal::sample(uint64_t* seed) const
 }
 double Normal::get_pdf(double x) const 
 {
-  return -1;
+   double exponent = -0.5 * std::pow((x - mean_value_) / std_dev_, 2);
+   double coefficient = 1 / (std_dev_ * std::sqrt(2 * PI));
+   return coefficient * std::exp(exponent);
 }
 
 //==============================================================================

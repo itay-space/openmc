@@ -714,6 +714,7 @@ void scatter(Particle& p, int i_nuclide)
     const auto& rx {nuc->reactions_[i]};
     inelastic_scatter(*nuc, *rx, p);
     p.event_mt() = rx->mt_;
+    p.event_index_mt() = i;
   }
 
   // Set event component

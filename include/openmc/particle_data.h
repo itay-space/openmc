@@ -282,6 +282,7 @@ private:
   TallyEvent event_;      //!< scatter, absorption
   int event_nuclide_;     //!< index in nuclides array
   int event_mt_;          //!< reaction MT
+  int event_index_mt_;
   int delayed_group_ {0}; //!< delayed group
   Direction v_t_;
 
@@ -422,6 +423,7 @@ public:
   int& event_nuclide() { return event_nuclide_; }
   const int& event_nuclide() const { return event_nuclide_; }
   int& event_mt() { return event_mt_; }
+  int& event_index_mt() { return event_index_mt_; }
   int& delayed_group() { return delayed_group_; }
   Position& v_t() { return v_t_; }
   const Position& v_t() const { return v_t_; }

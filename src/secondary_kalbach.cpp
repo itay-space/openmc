@@ -237,5 +237,115 @@ void KalbachMann::sample(
     mu = std::log(r1 * std::exp(km_a) + (1.0 - r1) * std::exp(-km_a)) / km_a;
   }
 }
+double KalbachMann::get_pdf(double E_in,double mymu, uint64_t* seed) const
+{
+  // Find energy bin and calculate interpolation factor -- if the energy is
+  // outside the range of the tabulated energies, choose the first or last bins
+  double myE_in = E_in;
+  double myE_out;
+  auto n_energy_in = energy_.size();
+  int i;
+  double r;
+  if (myE_in < energy_[0]) {
+    i = 0;
+    r = 0.0;
+  } else if (myE_in > energy_[n_energy_in - 1]) {
+    i = n_energy_in - 2;
+    r = 1.0;
+  } else {
+    i = lower_bound_index(energy_.begin(), energy_.end(), myE_in);
+    r = (myE_in - energy_[i]) / (energy_[i + 1] - energy_[i]);
+  }
+
+  // Sample between the ith and [i+1]th bin
+  int l = r > prn(seed) ? i + 1 : i;
+
+  // Interpolation for energy E1 and EK
+  int n_energy_out = distribution_[i].e_out.size();
+  int n_discrete = distribution_[i].n_discrete;
+  double E_i_1 = distribution_[i].e_out[n_discrete];
+  double E_i_K = distribution_[i].e_out[n_energy_out - 1];
+
+  n_energy_out = distribution_[i + 1].e_out.size();
+  n_discrete = distribution_[i + 1].n_discrete;
+  double E_i1_1 = distribution_[i + 1].e_out[n_discrete];
+  double E_i1_K = distribution_[i + 1].e_out[n_energy_out - 1];
+
+  double E_1 = E_i_1 + r * (E_i1_1 - E_i_1);
+  double E_K = E_i_K + r * (E_i1_K - E_i_K);
+
+  // Determine outgoing energy bin
+  n_energy_out = distribution_[l].e_out.size();
+  n_discrete = distribution_[l].n_discrete;
+  double r1 = prn(seed);
+  double c_k = distribution_[l].c[0];
+  int k = 0;
+  int end = n_energy_out - 2;
+
+  // Discrete portion
+  for (int j = 0; j < n_discrete; ++j) {
+    k = j;
+    c_k = distribution_[l].c[k];
+    if (r1 < c_k) {
+      end = j;
+      break;
+    }
+  }
+
+  // Continuous portion
+  double c_k1;
+  for (int j = n_discrete; j < end; ++j) {
+    k = j;
+    c_k1 = distribution_[l].c[k + 1];
+    if (r1 < c_k1)
+      break;
+    k = j + 1;
+    c_k = c_k1;
+  }
+
+  double E_l_k = distribution_[l].e_out[k];
+  double p_l_k = distribution_[l].p[k];
+  double km_r, km_a;
+  if (distribution_[l].interpolation == Interpolation::histogram) {
+    // Histogram interpolation
+    if (p_l_k > 0.0 && k >= n_discrete) {
+      myE_out = E_l_k + (r1 - c_k) / p_l_k;
+    } else {
+      myE_out = E_l_k;
+    }
+
+    // Determine Kalbach-Mann parameters
+    km_r = distribution_[l].r[k];
+    km_a = distribution_[l].a[k];
+
+  } else {
+    // Linear-linear interpolation
+    double E_l_k1 = distribution_[l].e_out[k + 1];
+    double p_l_k1 = distribution_[l].p[k + 1];
+
+    double frac = (p_l_k1 - p_l_k) / (E_l_k1 - E_l_k);
+    if (frac == 0.0) {
+      myE_out = E_l_k + (r1 - c_k) / p_l_k;
+    } else {
+      myE_out =
+        E_l_k +
+        (std::sqrt(std::max(0.0, p_l_k * p_l_k + 2.0 * frac * (r1 - c_k))) -
+          p_l_k) /
+          frac;
+    }
+
+    // Determine Kalbach-Mann parameters
+    km_r = distribution_[l].r[k] +
+           (myE_out - E_l_k) / (E_l_k1 - E_l_k) *
+             (distribution_[l].r[k + 1] - distribution_[l].r[k]);
+    km_a = distribution_[l].a[k] +
+           (myE_out - E_l_k) / (E_l_k1 - E_l_k) *
+             (distribution_[l].a[k + 1] - distribution_[l].a[k]);
+  }
+
+  // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
+   double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu));
+   return pdf_mu;
+}
 
 } // namespace openmc

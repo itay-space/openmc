@@ -14,6 +14,7 @@
 #include "openmc/secondary_kalbach.h"
 #include "openmc/secondary_nbody.h"
 #include "openmc/secondary_uncorrelated.h"
+#include "openmc/secondary_thermal.h"
 
 namespace openmc {
 
@@ -103,6 +104,7 @@ void ReactionProduct::sample(
   } else {
     // If only one distribution is present, go ahead and sample it
     distribution_[0]->sample(E_in, E_out, mu, seed);
+    
   }
 }
 

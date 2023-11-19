@@ -2614,33 +2614,9 @@ void score_point_tally(Particle& p)
     ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
     //calculate shilding
     double total_distance = u_lab.norm();
-    double remaining_distance = total_distance;
-    double total_MFP1 = 0;
-    ghost_particle.event_calculate_xs();
-    ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-    double advance_distance = ghost_particle.boundary().distance;
-    while(advance_distance<remaining_distance)
-    {
-      total_MFP1 += advance_distance*ghost_particle.macro_xs().total;
-        //Advance particle in space and time
-      for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-        ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
-      }
-        remaining_distance-=advance_distance;
-        ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
-        ghost_particle.event_cross_surface();
-        ghost_particle.event_calculate_xs();
-        ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-        advance_distance = ghost_particle.boundary().distance;
-    }
+    double total_MFP1 = get_MFP(ghost_particle,total_distance) ;
     flux1 = ghost_particle.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf1lab;
     //std::cout << "flux1 ITAY:  "<< flux1 <<std::endl;
-
-
-
-
-
-
 
     if ((cond < 1) && (theta < std::asin(cond)))
     {
@@ -2668,27 +2644,8 @@ void score_point_tally(Particle& p)
       ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_2);
       //calculate shilding
       double total_distance = u_lab.norm();
-      double remaining_distance = total_distance;
-      double total_MFP2 = 0;
-      ghost_particle.event_calculate_xs();
-      ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-      double advance_distance = ghost_particle.boundary().distance;
-      while(advance_distance<remaining_distance)
-      {
-        total_MFP2 += advance_distance*ghost_particle.macro_xs().total;
-          //Advance particle in space and time
-        for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-          ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
-        }
-          remaining_distance-=advance_distance;
-          ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
-          ghost_particle.event_cross_surface();
-          ghost_particle.event_calculate_xs();
-          ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-          advance_distance = ghost_particle.boundary().distance;
-      }
-
-          flux2 = ghost_particle.wgt()*exp(-total_MFP2)/(2*PI*total_distance*total_distance)*pdf2lab;
+      double total_MFP2 = get_MFP(ghost_particle , total_distance);
+      flux2 = ghost_particle.wgt()*exp(-total_MFP2)/(2*PI*total_distance*total_distance)*pdf2lab;
           //std::cout << "flux2 ITAY:  "<< flux2 <<std::endl;
     }
   }
@@ -2706,18 +2663,36 @@ void score_point_tally(Particle& p)
   }
 
  if (p.event_mt() != 2){
-  // std::cout << "my mt  "<< p.event_mt() <<std::endl;
-  const auto& rx {nuc->reactions_[0]};
-  auto& d = rx->products_[0].distribution_[0];
-  //d.get() //-> bla() //.get()->bla()
-  //auto d_ = dynamic_cast<CorrelatedAngleEnergy*>(d.get());
-  //double or1 = d_->angle().get_pdf_value(0,0,p.current_seed());
-  //std::cout << "or:  "<< or1 <<std::endl;
+   std::cout << "my mt  "<< p.event_mt() <<std::endl;
+   const auto& rx {nuc->reactions_[ p.event_index_mt()]};
+   /*
+   auto n = applicability_.size();
+   int distribution_index;
+    if (n > 1) {
+    double prob = 0.0;
+    double c = prn(seed);
+    for (int i = 0; i < n; ++i) {
+      // Determine probability that i-th energy distribution is sampled
+      prob += applicability_[i](E_in);
+
+      // If i-th distribution is sampled, sample energy from the distribution
+      if (c <= prob) {
+        distribution_[i]->sample(E_in, E_out, mu, seed)
+        distribution_index = i;
+        break;
+      }
+    }
+  } else {
+    // If only one distribution is present, go ahead and sample it
+    distribution_[0]->sample(E_in, E_out, mu, seed);
+    distribution_index = 0;
+  }
+  */
   
  }
 
 
-
+ // starting scroing loop on
   for (auto i_tally : model::active_point_tallies) {
     const Tally& tally {*model::tallies[i_tally]};
 
@@ -2825,7 +2800,8 @@ if (angleDistribution)
         
         Distribution* muDistribution = polarAzimuthalDistribution->mu();
         Distribution* phiDistribution = polarAzimuthalDistribution->phi();
-        pdf_mu_det = muDistribution->get_pdf(my_det_mu) * phiDistribution->get_pdf(0) ; 
+        pdf_mu_det = muDistribution->get_pdf(my_det_mu) ;
+        //* phiDistribution->get_pdf(0) ; 
         //assuming phi is isotropic
        //
 
@@ -2846,7 +2822,7 @@ if (angleDistribution)
           {
           pdf_mu_det=1;
           }
-        std::cout << "Pencil "  << std::endl;
+      //  std::cout << "Pencil "  << std::endl;
 
     } 
 
@@ -2864,31 +2840,9 @@ else {
 
     Particle ghost_particle=Particle();
     ghost_particle.initilze_ghost_particle_from_source(src,u_lab_unit);
-    //calculate shilding
     double total_distance = u_lab.norm();
-    double remaining_distance = total_distance;
-    double total_MFP = 0;
-    ghost_particle.event_calculate_xs();
-    ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-    double advance_distance = ghost_particle.boundary().distance;
-    
-    while(advance_distance<remaining_distance)
-    {
-      total_MFP += advance_distance*ghost_particle.macro_xs().total;
-        //Advance particle in space and time
-      for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-        ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
-      }
-        remaining_distance-=advance_distance;
-        ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
-        ghost_particle.event_cross_surface();
-        ghost_particle.event_calculate_xs();
-        ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-        advance_distance = ghost_particle.boundary().distance;
-        //std::cout << "advance_distance " << advance_distance << std::endl;
-    }
-
- flux = ghost_particle.wgt()*exp(-total_MFP)/(2*PI*total_distance*total_distance)*pdf_mu_det; 
+    double total_MFP = get_MFP(ghost_particle , total_distance);
+    flux = ghost_particle.wgt()*exp(-total_MFP)/(2*PI*total_distance*total_distance)*pdf_mu_det; 
  //std::cout << "pdf_mu_det " << pdf_mu_det << std::endl;
  //std::cout << "flux from source " << flux << std::endl;
 }
@@ -2960,6 +2914,34 @@ void boostf( double A[4], double B[4], double X[4])
   return;
 }
 
+double get_MFP(Particle ghost_particle , double total_distance)
+{
+    //calculate shilding
+    double remaining_distance = total_distance;
+    double total_MFP = 0;
+    ghost_particle.event_calculate_xs();
+    ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+    double advance_distance = ghost_particle.boundary().distance;
+    
+    while(advance_distance<remaining_distance)
+    {
+      total_MFP += advance_distance*ghost_particle.macro_xs().total;
+        //Advance particle in space and time
+      for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+        ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+      }
+        remaining_distance-=advance_distance;
+        ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
+        ghost_particle.event_cross_surface();
+        ghost_particle.event_calculate_xs();
+        ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+        advance_distance = ghost_particle.boundary().distance;
+        //std::cout << "advance_distance " << advance_distance << std::endl;
+    }
+
+    return total_MFP;
+
+}
 
 
 

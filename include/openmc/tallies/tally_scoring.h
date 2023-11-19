@@ -75,10 +75,8 @@ void score_collision_tally(Particle& p);
 //! \param p The particle being tracked
 void score_point_tally(Particle& p);
 void score_point_tally_from_source(const SourceSite* src);
+double get_MFP(Particle ghost_particle , double total_distance);
 
-Position GetRotVector(double phi ,Position u_lab ,Position k );
-
-//! Score tallies based on a simple count of events (for continuous energy).
 //
 void boostf( double A[4], double B[4], double X[4]);
 //! Analog tallies are triggered at every collision, not every event.
