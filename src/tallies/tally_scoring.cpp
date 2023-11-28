@@ -2552,175 +2552,39 @@ void score_point_tally(Particle& p)
 
   // Initialize fluxes
   //
-  double flux = 0.0;
-  double flux1 = 0.0;
-  double flux2 = 0.0;
-  std::vector<Particle> ghost_particles_elastic; 
-  std::vector<double> pdfs;
+  std::vector<Particle> ghost_particles; 
+  std::vector<double> pdfs_cm;
+  std::vector<double> pdfs_lab;
+  std::vector<double> fluxes;
+
   
    if (p.event_mt() == 2)
    {
-   std::cout << "my mt  "<< p.event_mt() <<std::endl;
-   get_pdf_to_point_elastic(det_pos , p , pdfs , ghost_particles_elastic);
-  std::cout <<"pdfs size" << pdfs.size() << std::endl;
-  for (size_t i = 0; i < pdfs.size(); ++i) {
-        std::cout << i << "new \t" << pdfs[i] << std::endl;
-    }
-
+   //std::cout << "my mt  "<< p.event_mt() <<std::endl;
+   get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
+  //std::cout <<"pdfs size" << pdfs.size() << std::endl;
    }
 
-
-  // Get possible solutions
-  //
-  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+//Assume one point detector
+Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
                    det_pos[2]-p.r().z};
-  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-  
-  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
-  const auto& nuc {data::nuclides[p.event_nuclide()]};
-  double awr = nuc->awr_;
-  double m2= m1*awr; // mass of target 
-  double m3= m1; // mass of outgoing particle to detector 
-  double m4= m2; // mass of recoil target  system
-  
-  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
-  //if (p1_tot == 0) {return; std::cout << "p1_tot was zero "<<std::endl;} // without this the get_pdf function turns p.r() into nan
-  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
-  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab
-  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2);
-  double E_cm = E1_tot + E2_tot;
-  Direction p_cm = p1 + p2;
-  double p_tot_cm = p_cm.norm();
-  
-  double cos_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3 
-  double theta = std::acos(cos_lab);
-  double sin_lab_sq = 1 - cos_lab*cos_lab;
+ double total_distance = u_lab.norm();
 
-  double M_cm = std::sqrt(E_cm*E_cm - p_tot_cm*p_tot_cm); // mass of the center of mass (incoming and target)
-  double gamma = E_cm/M_cm;
-  double p1_cm[4];
-  double A[4] = {E_cm, p_cm.x , p_cm.y , p_cm.z};
-  double B[4] = {E1_tot , p1.x,p1.y,p1.z};
-  boostf( A, B , p1_cm);
-  double p1_tot_cm = std::sqrt(p1_cm[1]*p1_cm[1]+p1_cm[2]*p1_cm[2]+p1_cm[3]*p1_cm[3]);
-  double cond = (M_cm/p_tot_cm) * (p1_tot_cm/m3);
-  double insq = (M_cm*M_cm * p1_tot_cm*p1_tot_cm - m3*m3*p_tot_cm*p_tot_cm*sin_lab_sq);
-  double p3_tot_1 = 0;
-  double p3_tot_2 = 0;
-  double E3k_1 = 0;
-  double E3k_2 = 0;
-  Direction p3_1 = {0,0,0};
-  Direction p3_2 = {0,0,0};
-  double Fp3cm_1[4];
-  double Fp3cm_2[4];
-  const auto& rx {nuc->reactions_[0]};
-  auto& d = rx->products_[0].distribution_[0];
-  auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
-  std::vector<Particle> ghost_particles; 
-  std::vector<double> fluxes;
-
-  if ( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
-  {
-    // first solution
+   //collect MFP for solutions and calc fluxes
+for (size_t index = 0; index < ghost_particles.size(); ++index) {
     
-    p3_tot_1 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab + 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
-    p3_1 = u_lab_unit*p3_tot_1;
-    double E3_tot_1 = std::sqrt(p3_tot_1*p3_tot_1 + m3*m3);
-    E3k_1 = (E3_tot_1 - m3) *1e6; // back to eV
-    double B1[4] = {E3_tot_1 , p3_1.x,p3_1.y,p3_1.z};
-    boostf( A, B1 , Fp3cm_1);  
-    
-    double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
-    double E3cm_1 = std::sqrt(p3cm_tot_1*p3cm_tot_1 + m3*m3);
-    double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);// good until here
-    if (mucm_1 > 1){ std::cout << "mucm_1 "<< mucm_1 <<std::endl; mucm_1 = 1;} //crucial to prevent nan in next line
-    if (mucm_1 < -1){ std::cout << "mucm_1 "<< mucm_1 <<std::endl;mucm_1 = -1;}
-    double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed()); 
-
-    double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-    double q1 = (p_tot_cm / E_cm) * (E3cm_1 / p3cm_tot_1);
-    
-    if (mucm03_1 > 1){std::cout << "mucm03_1 "<< mucm03_1 <<std::endl; mucm03_1 = 1; } //crucial to prevent nan in next line
-    if (mucm03_1 < -1){std::cout << "mucm03_1 "<< mucm03_1 <<std::endl; mucm03_1 = -1; }
-    double sincm1 = std::sqrt(1-mucm03_1*mucm03_1); // if this is zero derivative is inf so pdf is 0
-    double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
-    double derivative1 =  gamma*(1+q1*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
-    double pdf1lab = pdf1cm/std::abs(derivative1);
-    
-    
-    
-    std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
-    //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
-    //std::cout << "derivative1 PAPER  "<< (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
-    
-
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
-    ghost_particles.push_back(ghost_particle);
-    //calculate shilding
-    double total_distance = u_lab.norm();
-    double total_MFP1 = get_MFP(ghost_particle,total_distance) ;
-    flux1 = ghost_particle.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf1lab;
-    //std::cout << "flux1 ITAY:  "<< flux1 <<std::endl;
-    if (std::isnan(flux1)) {
-      std::cout << "flux1 nan  "<< flux1 <<std::endl;
-     // std::cout << "p1_tot  "<< p1_tot <<std::endl;
-      //std::cout << "p.E_last()  "<< p.E_last() <<std::endl;
-     // std::cout << "u_lab.norm()  "<< u_lab.norm() <<std::endl;
-     // std::cout << "det pos "<< det_pos[0]<<" "<<det_pos[1]<<" "<<det_pos[2]<<" "<<std::endl;
-     // std::cout << "col pos "<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
-     // std::cout << "sin_lab_sq  "<< sin_lab_sq <<std::endl;
-      //flux1 = 0;
-      }
+    auto& ghost_p = ghost_particles[index];
+    double pdf_lab = pdfs_lab[index];
+    //calculate shielding
+   
+    double total_MFP1 = get_MFP(ghost_p,total_distance);
+    //
+    double flux1 = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
     fluxes.push_back(flux1);
+    //std::cout <<"flux new" << flux1 << std::endl;
 
-    if ((cond < 1) && (theta < std::asin(cond)))
-    {
-      // second solution
-      
-      p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
-      p3_2 = u_lab_unit*p3_tot_2;
-      double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
-      E3k_2 = (E3_tot_2 -m3 )*1e6; 
-      double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
-      boostf( A, B2 , Fp3cm_2);
-      double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
-      double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
-      double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
-      double pdf2cm = d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed()); 
-      double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-      double q2 = (p_tot_cm / E_cm) * (E3cm_2 / p3cm_tot_2);
-      if (mucm03_2 > 1) {  mucm03_2 = 1;}  //crucial to prevent nan in next line
-      if (mucm03_2 < -1) {  mucm03_2 = -1;} 
-      double sincm2 = std::sqrt(1-mucm03_2*mucm03_2); 
-      double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2; 
-      double derivative2 =  gamma*(1+q2*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
-      double pdf2lab = pdf2cm/std::abs(derivative2);
-      std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
-     // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
-
-
-
-      
-      Particle ghost_particle=Particle();
-      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_2);
-      ghost_particles.push_back(ghost_particle);
-      //calculate shilding
-      double total_distance = u_lab.norm();
-      double total_MFP2 = get_MFP(ghost_particle , total_distance);
-
-      flux2 = ghost_particle.wgt()*exp(-total_MFP2)/(2*PI*total_distance*total_distance)*pdf2lab;
-          if (std::isnan(flux2)) { std::cout << "flux2 nan  "<< flux2 <<std::endl; 
-        //  flux2 = 0;
-          }
-          //std::cout << "flux2 ITAY:  "<< flux2 <<std::endl;
-      fluxes.push_back(flux2);
-      
-    }
-  }
-
+}
 
   //if (std::isnan(flux1)) {flux1=0;}
   //if (std::isnan(flux2)) {flux2=0;}
@@ -2731,7 +2595,7 @@ void score_point_tally(Particle& p)
   
 
  if (p.event_mt() != 2){
-   std::cout << "my mt  "<< p.event_mt() <<std::endl;
+   //std::cout << "my mt  "<< p.event_mt() <<std::endl;
    // kalbach
    // get E_out from get_pdf
   //mu_cm -> from E_out and  Jacobian
@@ -2741,24 +2605,25 @@ void score_point_tally(Particle& p)
 
     // copy energy of neutron
    double E_in = p.E_last();
-   std::cout << "E_in collision " << E_in<<std::endl;
+  // std::cout << "E_in collision " << E_in<<std::endl;
    // sample outgoing energy and scattering cosine
   double E_out;
   double mu;
   
-
+ const auto& nuc {data::nuclides[p.event_nuclide()]};
  const auto& rx {nuc->reactions_[ p.event_index_mt()]};
- double d = rx->products_[0].get_pdf(E_in, E_out, mu, p.current_seed());
+ //double d = rx->products_[0].get_pdf(E_in, E_out, mu, p.current_seed());
    if (rx->scatter_in_cm_) 
   {
-    std::cout << "pdf com " << d <<std::endl;
-    std::cout << "E_out com " << E_out <<std::endl;
+    //std::cout << "pdf com " << d <<std::endl;
+    //std::cout << "E_out com " << E_out <<std::endl;
   }
   
 // Now check which distribution is used 
 
 
  }
+
 
  // starting scroing loop on ghost particles
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
@@ -2767,7 +2632,7 @@ void score_point_tally(Particle& p)
           //if (std::isnan(flux)) {flux=0;}
           if ((p.type() != ParticleType::neutron) || (p.event_mt() != 2) )
      {
-      flux = 0;
+      double flux = 0;
       
      }
         
@@ -3046,7 +2911,7 @@ double get_MFP(Particle ghost_particle , double total_distance)
 
 }
 
-void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &pdfs ,std::vector<Particle> &ghost_particles)
+void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles)
 {
    Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
@@ -3113,6 +2978,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     if (mucm_1 > 1){ std::cout << "mucm_1 "<< mucm_1 <<std::endl; mucm_1 = 1;} //crucial to prevent nan in next line
     if (mucm_1 < -1){ std::cout << "mucm_1 "<< mucm_1 <<std::endl;mucm_1 = -1;}
     double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed()); 
+    pdfs_cm.push_back(pdf1cm);
 
     double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
     double q1 = (p_tot_cm / E_cm) * (E3cm_1 / p3cm_tot_1);
@@ -3132,7 +2998,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     Particle ghost_particle=Particle();
     ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
     ghost_particles.push_back(ghost_particle);
-    pdfs.push_back(pdf1lab);
+    pdfs_lab.push_back(pdf1lab);
 
     if ((cond < 1) && (theta < std::asin(cond)))
     {
@@ -3148,6 +3014,8 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
       double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
       double pdf2cm = d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed()); 
+      pdfs_cm.push_back(pdf2cm);
+      
       double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
       double q2 = (p_tot_cm / E_cm) * (E3cm_2 / p3cm_tot_2);
       if (mucm03_2 > 1) {  mucm03_2 = 1;}  //crucial to prevent nan in next line
@@ -3162,7 +3030,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       Particle ghost_particle=Particle();
       ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_2);
       ghost_particles.push_back(ghost_particle);
-      pdfs.push_back(pdf2lab);
+      pdfs_lab.push_back(pdf2lab);
       
     }
   }
