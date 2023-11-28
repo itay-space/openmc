@@ -2513,100 +2513,54 @@ void score_collision_tally(Particle& p)
   for (auto& match : p.filter_matches())
     match.bins_present_ = false;
 }
-Position GetRotVector(double phi ,Position u_lab ,Position k )
-{
-  return u_lab*std::cos(phi) + k.cross(u_lab) * std::sin(phi) + k * k.dot(u_lab) * (1 - std::cos(phi));
-}
 
 void score_point_tally(Particle& p)
 {
-  //std::cout << "p.E_last()  start"<< p.E_last() <<std::endl;
-
-
+  col_counter ++;
   if (std::isnan(p.r().x))
   {
   std::cout << "p.r() 2"<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
   std::cout << "p.E_last()  "<< p.E_last() <<std::endl;
   return; //sometimes the get_pdf function turns p.r() into nan
   }
-  
- 
-  // Get position (x,y,z) of detector
-  //
-  double det_pos[3] = {0,0,0};
-
-
-
-  for (auto i_tally : model::active_point_tallies) 
+  if (p.event_mt() == 101) // absorption
   {
-    const Tally& tally {*model::tallies[i_tally]};
-    for (auto i = 0; i < tally.positions_.size(); ++i)
-       {
-        if (tally.positions_.size() > 1) {
-        auto pos_coord = tally.positions_[i];
-        det_pos[i] = std::stod(pos_coord);
-        }
-        //fmt::print("pos COORD = {0}" ,det_pos[i] );
-         }
+    return;
   }
-
-  // Initialize fluxes
-  //
+  // Get position (x,y,z) of detector
+  double det_pos[3] = {0,0,0};
+  get_det_pos(det_pos);
+  // Initialize 
   std::vector<Particle> ghost_particles; 
   std::vector<double> pdfs_cm;
   std::vector<double> pdfs_lab;
   std::vector<double> fluxes;
-
-  
    if (p.event_mt() == 2)
    {
-   //std::cout << "my mt  "<< p.event_mt() <<std::endl;
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
-  //std::cout <<"pdfs size" << pdfs.size() << std::endl;
    }
-
 //Assume one point detector
-Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
-                   det_pos[1]-p.r().y,
-                   det_pos[2]-p.r().z};
- double total_distance = u_lab.norm();
-
-   //collect MFP for solutions and calc fluxes
+Direction u_lab {det_pos[0]-p.r().x, det_pos[1]-p.r().y,det_pos[2]-p.r().z};
+double total_distance = u_lab.norm();
+//collect MFP for solutions and calc fluxes
 for (size_t index = 0; index < ghost_particles.size(); ++index) {
-    
     auto& ghost_p = ghost_particles[index];
     double pdf_lab = pdfs_lab[index];
     //calculate shielding
-   
     double total_MFP1 = get_MFP(ghost_p,total_distance);
-    //
     double flux1 = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
     fluxes.push_back(flux1);
-    //std::cout <<"flux new" << flux1 << std::endl;
-
 }
 
   //if (std::isnan(flux1)) {flux1=0;}
   //if (std::isnan(flux2)) {flux2=0;}
-  col_counter ++;
-
- // flux = flux1 + flux2;
-
   
-
  if (p.event_mt() != 2){
-   //std::cout << "my mt  "<< p.event_mt() <<std::endl;
-   // kalbach
-   // get E_out from get_pdf
-  //mu_cm -> from E_out and  Jacobian
   // make sure v_t is 0
-   
-//
-
-    // copy energy of neutron
+  // copy energy of neutron
    double E_in = p.E_last();
   // std::cout << "E_in collision " << E_in<<std::endl;
-   // sample outgoing energy and scattering cosine
+  // sample outgoing energy and scattering cosine
   double E_out;
   double mu;
   
@@ -2620,12 +2574,10 @@ for (size_t index = 0; index < ghost_particles.size(); ++index) {
   }
   
 // Now check which distribution is used 
-
-
  }
 
 
- // starting scroing loop on ghost particles
+ // starting scoring loop on ghost particles
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double myflux = fluxes[index];
@@ -2689,14 +2641,11 @@ for (size_t index = 0; index < ghost_particles.size(); ++index) {
 
   } //for loop on ghost particles
 
-
-
 }
 
-void score_point_tally_from_source(const SourceSite* src)
-{ double flux = 0;
-  double det_pos[3] = {0,0,0}; // Get position (x,y,z) of detector
-  for (auto i_tally : model::active_point_tallies) 
+void get_det_pos(double &det_pos)
+{
+ for (auto i_tally : model::active_point_tallies) 
   {
     const Tally& tally {*model::tallies[i_tally]};
     for (auto i = 0; i < tally.positions_.size(); ++i)
@@ -2705,6 +2654,12 @@ void score_point_tally_from_source(const SourceSite* src)
         det_pos[i] = std::stod(pos_coord);
         }}
   }
+}
+
+void score_point_tally_from_source(const SourceSite* src)
+{ double flux = 0;
+  double det_pos[3] = {0,0,0}; // Get position (x,y,z) of detector
+  get_det_pos(det_pos);
   Direction u_lab {det_pos[0]-src->r.x,  // towards the detector
                    det_pos[1]-src->r.y,
                    det_pos[2]-src->r.z};
