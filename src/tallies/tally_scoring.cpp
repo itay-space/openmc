@@ -2517,6 +2517,11 @@ void score_collision_tally(Particle& p)
 void score_point_tally(Particle& p)
 {
   col_counter ++;
+  // Initialize 
+  std::vector<Particle> ghost_particles; 
+  std::vector<double> pdfs_cm;
+  std::vector<double> pdfs_lab;
+  //std::vector<double> fluxes;
   if (std::isnan(p.r().x))
   {
   std::cout << "p.r() 2"<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
@@ -2530,32 +2535,12 @@ void score_point_tally(Particle& p)
   // Get position (x,y,z) of detector
   double det_pos[3] = {0,0,0};
   get_det_pos(det_pos);
-  // Initialize 
-  std::vector<Particle> ghost_particles; 
-  std::vector<double> pdfs_cm;
-  std::vector<double> pdfs_lab;
-  std::vector<double> fluxes;
+  
    if (p.event_mt() == 2)
    {
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }
-//Assume one point detector
-Direction u_lab {det_pos[0]-p.r().x, det_pos[1]-p.r().y,det_pos[2]-p.r().z};
-double total_distance = u_lab.norm();
-//collect MFP for solutions and calc fluxes
-for (size_t index = 0; index < ghost_particles.size(); ++index) {
-    auto& ghost_p = ghost_particles[index];
-    double pdf_lab = pdfs_lab[index];
-    //calculate shielding
-    double total_MFP1 = get_MFP(ghost_p,total_distance);
-    double flux1 = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
-    fluxes.push_back(flux1);
-}
-
-  //if (std::isnan(flux1)) {flux1=0;}
-  //if (std::isnan(flux2)) {flux2=0;}
-  
- if (p.event_mt() != 2){
+   if (p.event_mt() != 2){
   // make sure v_t is 0
   // copy energy of neutron
    double E_in = p.E_last();
@@ -2577,10 +2562,22 @@ for (size_t index = 0; index < ghost_particles.size(); ++index) {
  }
 
 
+
+//Assume one point detector
+Direction u_lab {det_pos[0]-p.r().x, det_pos[1]-p.r().y,det_pos[2]-p.r().z};
+double total_distance = u_lab.norm();
+//collect MFP for solutions and calc fluxes
+  //if (std::isnan(flux1)) {flux1=0;}
+  //if (std::isnan(flux2)) {flux2=0;}
+
  // starting scoring loop on ghost particles
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
-          double myflux = fluxes[index];
+          double pdf_lab = pdfs_lab[index];
+          //calculate shielding
+          double total_MFP1 = get_MFP(ghost_p,total_distance);
+          double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
+          //fluxes.push_back(flux1);
           //if (std::isnan(flux)) {flux=0;}
           if ((p.type() != ParticleType::neutron) || (p.event_mt() != 2) )
      {
