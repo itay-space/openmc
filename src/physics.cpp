@@ -1110,6 +1110,7 @@ void inelastic_scatter(const Nuclide& nuc, const Reaction& rx, Particle& p)
   // sample outgoing energy and scattering cosine
   double E;
   double mu;
+  //std::cout << "E_in inelastic_scatter" << E_in << std::endl;
   rx.products_[0].sample(E_in, E, mu, p.current_seed());
 
   // if scattering system is in center-of-mass, transfer cosine of scattering

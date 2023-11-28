@@ -76,7 +76,7 @@ double UncorrelatedAngleEnergy::get_pdf(
     // no angle distribution given => assume isotropic for all energies
     pdf = 0.5;
   }
-
+//E_out = energy_->sample(E_in, seed);
 return pdf;
 }
 

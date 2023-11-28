@@ -108,4 +108,77 @@ void ReactionProduct::sample(
   }
 }
 
+double ReactionProduct::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  double mypdf = 0;
+
+  int distribution_index;
+  auto n = applicability_.size();
+  if (n > 1) {
+    double prob = 0.0;
+    double c = prn(seed);
+    for (int i = 0; i < n; ++i) {
+      // Determine probability that i-th energy distribution is sampled
+      prob += applicability_[i](E_in);
+
+      // If i-th distribution is sampled, sample energy from the distribution
+      if (c <= prob) {
+        //distribution_[i]->sample(E_in, E_out, mu, seed);
+        distribution_index = i;
+        break;
+      }
+    }
+  } else {
+    // If only one distribution is present, go ahead and sample it
+    //distribution_[0]->sample(E_in, E_out, mu, seed);
+    distribution_index = 0;
+    
+  }
+ // now extract pdf 
+
+AngleEnergy* angleEnergyPtr = distribution_[distribution_index].get();
+
+if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*correlatedAE).name() << " implementation." << std::endl;
+    // Handle CorrelatedAngleEnergy
+} else if (KalbachMann* kalbachMann = dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
+    mypdf = (*kalbachMann).get_pdf(E_in,E_out, 0.3333 , seed);
+   // std::cout << "mypdf " << (*kalbachMann).get_pdf(E_in,E_out, 0.3333 , seed) << std::endl;
+   // std::cout << " my E_in " << E_in <<std::endl;
+   // std::cout << " my E out " << E_out <<std::endl;
+    // Handle KalbachMann
+} else if (NBodyPhaseSpace* nBodyPS = dynamic_cast<NBodyPhaseSpace*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*nBodyPS).name() << " implementation." << std::endl;
+    // Handle NBodyPhaseSpace
+} else if (UncorrelatedAngleEnergy* uncorrelatedAE = dynamic_cast<UncorrelatedAngleEnergy*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*uncorrelatedAE).name() << " implementation." << std::endl;
+    // Handle UncorrelatedAngleEnergy
+} else if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
+    // Handle CoherentElasticAE
+} else if (IncoherentElasticAE* incoherentElasticAE = dynamic_cast<IncoherentElasticAE*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*incoherentElasticAE).name() << " implementation." << std::endl;
+    // Handle IncoherentElasticAE
+} else if (IncoherentElasticAEDiscrete* incoherentElasticAEDiscrete = dynamic_cast<IncoherentElasticAEDiscrete*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*incoherentElasticAEDiscrete).name() << " implementation." << std::endl;
+    // Handle IncoherentElasticAEDiscrete
+} else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation." << std::endl;
+    // Handle IncoherentInelasticAEDiscrete
+} else if (IncoherentInelasticAE* incoherentInelasticAE = dynamic_cast<IncoherentInelasticAE*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*incoherentInelasticAE).name() << " implementation." << std::endl;
+    // Handle IncoherentInelasticAE
+} else if (MixedElasticAE* mixedElasticAE = dynamic_cast<MixedElasticAE*>(angleEnergyPtr)) {
+    std::cout << "Used " << typeid(*mixedElasticAE).name() << " implementation." << std::endl;
+    // Handle MixedElasticAE
+} else {
+    std::cout << "Unknown derived type." << std::endl;
+}
+
+
+ return mypdf;
+}
+
 } // namespace openmc

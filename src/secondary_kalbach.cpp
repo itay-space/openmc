@@ -237,12 +237,12 @@ void KalbachMann::sample(
     mu = std::log(r1 * std::exp(km_a) + (1.0 - r1) * std::exp(-km_a)) / km_a;
   }
 }
-double KalbachMann::get_pdf(double E_in,double mymu, uint64_t* seed) const
+double KalbachMann::get_pdf(double E_in,double& E_out,double mymu, uint64_t* seed) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins
   double myE_in = E_in;
-  double myE_out;
+  //double E_out;
   auto n_energy_in = energy_.size();
   int i;
   double r;
@@ -309,14 +309,15 @@ double KalbachMann::get_pdf(double E_in,double mymu, uint64_t* seed) const
   if (distribution_[l].interpolation == Interpolation::histogram) {
     // Histogram interpolation
     if (p_l_k > 0.0 && k >= n_discrete) {
-      myE_out = E_l_k + (r1 - c_k) / p_l_k;
+      E_out = E_l_k + (r1 - c_k) / p_l_k;
     } else {
-      myE_out = E_l_k;
+      E_out = E_l_k;
     }
-
+     std::cout << " Histogram interpolation" <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k];
     km_a = distribution_[l].a[k];
+    //std::cout <<"Histo " << " km_r " <<  km_r << " km_a " <<  km_a << std::endl;
 
   } else {
     // Linear-linear interpolation
@@ -325,24 +326,35 @@ double KalbachMann::get_pdf(double E_in,double mymu, uint64_t* seed) const
 
     double frac = (p_l_k1 - p_l_k) / (E_l_k1 - E_l_k);
     if (frac == 0.0) {
-      myE_out = E_l_k + (r1 - c_k) / p_l_k;
+      E_out = E_l_k + (r1 - c_k) / p_l_k;
     } else {
-      myE_out =
+      E_out =
         E_l_k +
         (std::sqrt(std::max(0.0, p_l_k * p_l_k + 2.0 * frac * (r1 - c_k))) -
           p_l_k) /
           frac;
     }
-
+   std::cout << " Linear-linear interpolation " <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k] +
-           (myE_out - E_l_k) / (E_l_k1 - E_l_k) *
+           (E_out - E_l_k) / (E_l_k1 - E_l_k) *
              (distribution_[l].r[k + 1] - distribution_[l].r[k]);
     km_a = distribution_[l].a[k] +
-           (myE_out - E_l_k) / (E_l_k1 - E_l_k) *
+           (E_out - E_l_k) / (E_l_k1 - E_l_k) *
              (distribution_[l].a[k + 1] - distribution_[l].a[k]);
   }
 
+
+// Now interpolate between incident energy bins i and i + 1
+  if (k >= n_discrete) {
+    if (l == i) {
+      E_out = E_1 + (E_out - E_i_1) * (E_K - E_1) / (E_i_K - E_i_1);
+    } else {
+      E_out = E_1 + (E_out - E_i1_1) * (E_K - E_1) / (E_i1_K - E_i1_1);
+    }
+  }
+  //std::cout << " my E out in KM  " << E_out <<std::endl;
+   
   // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
    double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu));
    return pdf_mu;

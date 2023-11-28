@@ -2717,32 +2717,33 @@ void score_point_tally(Particle& p)
   
 
  if (p.event_mt() != 2){
-   //std::cout << "my mt  "<< p.event_mt() <<std::endl;
-   /*
-   const auto& rx {nuc->reactions_[ p.event_index_mt()]};
-   auto n = applicability_.size();
-   int distribution_index;
-    if (n > 1) {
-    double prob = 0.0;
-    double c = prn(seed);
-    for (int i = 0; i < n; ++i) {
-      // Determine probability that i-th energy distribution is sampled
-      prob += applicability_[i](E_in);
+   std::cout << "my mt  "<< p.event_mt() <<std::endl;
+   // kalbach
+   // get E_out from get_pdf
+  //mu_cm -> from E_out and  Jacobian
+  // make sure v_t is 0
+   
+//
 
-      // If i-th distribution is sampled, sample energy from the distribution
-      if (c <= prob) {
-        distribution_[i]->sample(E_in, E_out, mu, seed)
-        distribution_index = i;
-        break;
-      }
-    }
-  } else {
-    // If only one distribution is present, go ahead and sample it
-    distribution_[0]->sample(E_in, E_out, mu, seed);
-    distribution_index = 0;
+    // copy energy of neutron
+   double E_in = p.E_last();
+   std::cout << "E_in collision " << E_in<<std::endl;
+   // sample outgoing energy and scattering cosine
+  double E_out;
+  double mu;
+  
+
+ const auto& rx {nuc->reactions_[ p.event_index_mt()]};
+ double d = rx->products_[0].get_pdf(E_in, E_out, mu, p.current_seed());
+   if (rx->scatter_in_cm_) 
+  {
+    std::cout << "pdf com " << d <<std::endl;
+    std::cout << "E_out com " << E_out <<std::endl;
   }
+  
+// Now check which distribution is used 
 
-  */
+
  }
 
  // starting scroing loop on ghost particles
