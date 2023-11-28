@@ -74,6 +74,7 @@ void score_collision_tally(Particle& p);
 //
 //! \param p The particle being tracked
 void score_point_tally(Particle& p);
+void get_det_pos(double (&det_pos)[3]);
 void score_point_tally_from_source(const SourceSite* src);
 double get_MFP(Particle ghost_particle , double total_distance);
 void get_pdf_to_point_elastic(double det_pos[3] ,Particle& p ,std::vector<double> &pdfs_cm,std::vector<double> &pdfs_lab ,std::vector<Particle>& ghost_particles);
