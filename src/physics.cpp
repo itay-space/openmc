@@ -700,7 +700,7 @@ void scatter(Particle& p, int i_nuclide)
   if (!sampled) {
     // =======================================================================
     // INELASTIC SCATTERING
-
+    
     int n = nuc->index_inelastic_scatter_.size();
     int i = 0;
     for (int j = 0; j < n && prob < cutoff; ++j) {
@@ -1104,6 +1104,7 @@ void sample_fission_neutron(
 
 void inelastic_scatter(const Nuclide& nuc, const Reaction& rx, Particle& p)
 {
+  p.v_t() = {0,0,0};
   // copy energy of neutron
   double E_in = p.E();
 
