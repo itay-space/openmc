@@ -154,6 +154,7 @@ if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(a
     // Handle NBodyPhaseSpace
 } else if (UncorrelatedAngleEnergy* uncorrelatedAE = dynamic_cast<UncorrelatedAngleEnergy*>(angleEnergyPtr)) {
     std::cout << "Used " << typeid(*uncorrelatedAE).name() << " implementation." << std::endl;
+    (*uncorrelatedAE).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
     // Handle UncorrelatedAngleEnergy
 } else if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
     std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;

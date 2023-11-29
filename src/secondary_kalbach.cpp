@@ -340,7 +340,7 @@ void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double m
     } else {
       E_out = E_l_k;
     }
-     std::cout << " Histogram interpolation" <<std::endl;
+   //  std::cout << " Histogram interpolation" <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k];
     km_a = distribution_[l].a[k];
@@ -361,7 +361,7 @@ void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double m
           p_l_k) /
           frac;
     }
-   std::cout << " Linear-linear interpolation " <<std::endl;
+ //  std::cout << " Linear-linear interpolation " <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k] +
            (E_out - E_l_k) / (E_l_k1 - E_l_k) *
@@ -406,7 +406,7 @@ void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double m
     double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
     double pdf_mu1_lab = pdf_mu1_cm * deriv;
     pdfs_lab.push_back(pdf_mu1_lab);
-    std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
+   // std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
 
     if (cond > 0)
     {
@@ -425,7 +425,7 @@ void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double m
       double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
       double pdf_mu2_lab = pdf_mu2_cm * deriv;
       pdfs_lab.push_back(pdf_mu2_lab);
-      std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
+     // std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
     
     }
 

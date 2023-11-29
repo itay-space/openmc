@@ -7,6 +7,8 @@
 #include "openmc/error.h"
 #include "openmc/hdf5_interface.h"
 #include "openmc/random_dist.h"
+#include "openmc/particle.h"
+#include "openmc/nuclide.h"
 
 namespace openmc {
 
@@ -65,19 +67,73 @@ void UncorrelatedAngleEnergy::sample(
   E_out = energy_->sample(E_in, seed);
 }
 
-double UncorrelatedAngleEnergy::get_pdf(
-  double E_in, double mymu, uint64_t* seed) const
+void UncorrelatedAngleEnergy::get_pdf(
+  double det_pos[3],double E_in,double& E_out,double mymu, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
 {
-  double pdf = 0;
-  //  cosine distribution of scattering angle
+  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+                   det_pos[1]-p.r().y,
+                   det_pos[2]-p.r().z};
+  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
+  // Sample cosine of scattering angle
+  double pdf = -1;
   if (!angle_.empty()) {
-    pdf = angle_.get_pdf(E_in,mymu, seed);
+    mymu = angle_.sample(E_in, seed);
+    pdf = angle_.get_pdf(E_in,mymu,seed);
   } else {
     // no angle distribution given => assume isotropic for all energies
+    mymu = uniform_distribution(-1., 1., seed);
     pdf = 0.5;
   }
-//E_out = energy_->sample(E_in, seed);
-return pdf;
+
+  // Sample outgoing energy
+  E_out = energy_->sample(E_in, seed);
+
+ const auto& nuc {data::nuclides[p.event_nuclide()]};
+ const auto& rx {nuc->reactions_[p.event_index_mt()]};
+
+   if (rx->scatter_in_cm_) {
+
+    std::cout << " COM scatter "  <<std::endl;
+    double E_cm = E_out;
+
+    // determine outgoing energy in lab
+    double A = nuc->awr_;
+    double E_lab = E_cm + (E_in + 2.0 * mymu * (A + 1.0) * std::sqrt(E_in * E_cm)) /
+                 ((A + 1.0) * (A + 1.0));
+
+    // determine outgoing angle in lab
+    mymu = mymu * std::sqrt(E_cm / E_lab) + 1.0 / (A + 1.0) * std::sqrt(E_in / E_lab);
+   
+
+    Particle ghost_particle=Particle();
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab);
+    ghost_particles.push_back(ghost_particle);
+    pdfs_cm.push_back(pdf);
+    double deriv = sqrt(E_lab / E_out) /(1 - mymu / (A + 1) * sqrt(E_in /E_lab));
+    double pdf_mu_lab = pdf * deriv;
+    pdfs_lab.push_back(pdf_mu_lab);
+   // std::cout << " E in "  <<E_in << std::endl;
+    //std::cout << " E lab "  <<E_lab << std::endl;
+    std::cout << " pdf lab "  <<(pdf_mu_lab) << std::endl;
+
+  }
+  else
+  {
+     std::cout << " LAB scatter "  <<std::endl;
+    Particle ghost_particle=Particle();
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_out);
+    ghost_particles.push_back(ghost_particle);
+    pdfs_cm.push_back(-999);
+    pdfs_lab.push_back(pdf);
+    std::cout << " pdf lab "  <<pdf << std::endl;
+    //std::cout << " E lab "  <<E_out<< std::endl;
+
+  }
+ 
+
+
 }
+
+
 
 } // namespace openmc

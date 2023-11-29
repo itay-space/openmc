@@ -2556,17 +2556,6 @@ void score_point_tally(Particle& p)
  const auto& rx {nuc->reactions_[p.event_index_mt()]};
  rx->products_[0].get_pdf(det_pos,E_in, E_out, mu, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
 
- //std::cout << "heree" <<std::endl;
-   if (rx->scatter_in_cm_) 
-  {
-    //calc mu_cm following E_out in cm that got sampled.
-     //get_mu_cm_inelastic(det_pos , E_out ,p);
-
-
-    
-    //std::cout << "pdf com " << d <<std::endl;
-    //std::cout << "E_out com " << E_out <<std::endl;
-  }
   
 // Now check which distribution is used 
  }
@@ -2579,7 +2568,10 @@ double total_distance = u_lab.norm();
 //collect MFP for solutions and calc fluxes
   //if (std::isnan(flux1)) {flux1=0;}
   //if (std::isnan(flux2)) {flux2=0;}
-
+if (ghost_particles.size()==0)
+{
+   std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
+}
 //std::cout << " ghost_particles.size()" <<ghost_particles.size() <<std::endl;
  // starting scoring loop on ghost particles
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
@@ -2649,6 +2641,7 @@ double total_distance = u_lab.norm();
     match.bins_present_ = false;
 
   } //for loop on ghost particles
+
 
 }
 
