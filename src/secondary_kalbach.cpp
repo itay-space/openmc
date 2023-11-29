@@ -239,7 +239,7 @@ void KalbachMann::sample(
     mu = std::log(r1 * std::exp(km_a) + (1.0 - r1) * std::exp(-km_a)) / km_a;
   }
 }
-double KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double mymu, uint64_t* seed, Particle &p ,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double mymu, uint64_t* seed, Particle &p ,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins
@@ -395,38 +395,44 @@ double KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out,double
       std::cout << "mu_lab: " << mu_lab<< "," << std::endl;
       std::cout << "E: " << E_in << std::endl;
       */
-    std::cout << "E_lab1: " << E_lab1 << std::endl;
-    std::cout << "mu_cm1: " << mu_cm1 << std::endl;
-    std::cout << "pdf_mu1_cm: " << pdf_mu1_cm << std::endl;
+    //std::cout << "E_lab1: " << E_lab1 << std::endl;
+   // std::cout << "mu_cm1: " << mu_cm1 << std::endl;
+   // std::cout << "pdf_mu1_cm: " << pdf_mu1_cm << std::endl;
 
     Particle ghost_particle=Particle();
     ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab1);
     ghost_particles.push_back(ghost_particle);
     pdfs_cm.push_back(pdf_mu1_cm);
-    pdfs_lab.push_back(-19);
+    double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
+    double pdf_mu1_lab = pdf_mu1_cm * deriv;
+    pdfs_lab.push_back(pdf_mu1_lab);
+    std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
 
     if (cond > 0)
     {
       double  E_lab2 = (E_out * (A+1)*(A+1) + 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
       double  mu_cm2 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab2))*std::sqrt(E_lab2/E_out);
       double pdf_mu2_cm = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mu_cm2) + km_r * std::sinh(km_a * mu_cm2)); // center of mass
-      std::cout << "E_lab2: " << E_lab2 << std::endl;
-    std::cout << "mu_cm2: " << mu_cm2 << std::endl;
-    std::cout << "pdf_mu2_cm: " << pdf_mu2_cm << std::endl;
+      //std::cout << "E_lab2: " << E_lab2 << std::endl;
+   // std::cout << "mu_cm2: " << mu_cm2 << std::endl;
+   // std::cout << "pdf_mu2_cm: " << pdf_mu2_cm << std::endl;
 
 
       Particle ghost_particle=Particle();
       ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab2);
       ghost_particles.push_back(ghost_particle);
       pdfs_cm.push_back(pdf_mu2_cm);
-      pdfs_lab.push_back(-19);
+      double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
+      double pdf_mu2_lab = pdf_mu2_cm * deriv;
+      pdfs_lab.push_back(pdf_mu2_lab);
+      std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
     
     }
 
    }
 // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
-   double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu)); // center of mass
-   return pdf_mu;
+   //double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu)); // center of mass
+   //return pdf_mu;
 }
 
 } // namespace openmc

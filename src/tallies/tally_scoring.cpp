@@ -2542,7 +2542,7 @@ void score_point_tally(Particle& p)
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }
    if (p.event_mt() != 2){ // Inelastic
-  std::cout << "mt = " << p.event_mt() <<std::endl;
+ // std::cout << "mt = " << p.event_mt() <<std::endl;
   // make sure v_t is 0
   // copy energy of neutron
    double E_in = p.E_last();
@@ -2554,7 +2554,7 @@ void score_point_tally(Particle& p)
 
  const auto& nuc {data::nuclides[p.event_nuclide()]};
  const auto& rx {nuc->reactions_[p.event_index_mt()]};
- double d = rx->products_[0].get_pdf(det_pos,E_in, E_out, mu, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
+ rx->products_[0].get_pdf(det_pos,E_in, E_out, mu, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
 
  //std::cout << "heree" <<std::endl;
    if (rx->scatter_in_cm_) 
@@ -2585,7 +2585,7 @@ double total_distance = u_lab.norm();
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
-          //std::cout << "pdf lab " << pdf_lab <<std::endl;
+          std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
           //calculate shielding
           double total_MFP1 = get_MFP(ghost_p,total_distance);
           double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
