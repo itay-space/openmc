@@ -93,7 +93,7 @@ void UncorrelatedAngleEnergy::get_pdf(
 
    if (rx->scatter_in_cm_) {
 
-    std::cout << " COM scatter "  <<std::endl;
+    //std::cout << " COM scatter "  <<std::endl;
     double E_cm = E_out;
 
     // determine outgoing energy in lab
@@ -114,7 +114,7 @@ void UncorrelatedAngleEnergy::get_pdf(
     pdfs_lab.push_back(pdf_mu_lab);
    // std::cout << " E in "  <<E_in << std::endl;
     //std::cout << " E lab "  <<E_lab << std::endl;
-    std::cout << " pdf lab "  <<(pdf_mu_lab) << std::endl;
+    //std::cout << " pdf lab "  <<(pdf_mu_lab) << std::endl;
 
   }
   else

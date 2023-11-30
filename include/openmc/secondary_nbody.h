@@ -7,6 +7,7 @@
 #include "hdf5.h"
 
 #include "openmc/angle_energy.h"
+#include "openmc/particle.h"
 
 namespace openmc {
 
@@ -27,6 +28,9 @@ public:
   //! \param[inout] seed Pseudorandom seed pointer
   void sample(
     double E_in, double& E_out, double& mu, uint64_t* seed) const override;
+  void get_pdf(
+  double det_pos[3],double E_in,double& E_out,double mymu, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const;
+
 
 private:
   int n_bodies_;      //!< Number of particles distributed

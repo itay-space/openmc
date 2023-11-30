@@ -2542,7 +2542,7 @@ void score_point_tally(Particle& p)
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }
    if (p.event_mt() != 2){ // Inelastic
- // std::cout << "mt = " << p.event_mt() <<std::endl;
+  //std::cout << "mt = " << p.event_mt() <<std::endl;
   // make sure v_t is 0
   // copy energy of neutron
    double E_in = p.E_last();
@@ -2558,6 +2558,16 @@ void score_point_tally(Particle& p)
 
   
 // Now check which distribution is used 
+if (!rx->scatter_in_cm_) 
+{
+ std::cout<< "LABBBB" << std::endl;
+}
+else
+{
+ // std::cout<< "COMMM" << std::endl;
+}
+
+
  }
 
 
@@ -2570,14 +2580,15 @@ double total_distance = u_lab.norm();
   //if (std::isnan(flux2)) {flux2=0;}
 if (ghost_particles.size()==0)
 {
-   std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
+   //std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
 }
 //std::cout << " ghost_particles.size()" <<ghost_particles.size() <<std::endl;
  // starting scoring loop on ghost particles
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
-          std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
+         // std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
+        // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
           double total_MFP1 = get_MFP(ghost_p,total_distance);
           double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
