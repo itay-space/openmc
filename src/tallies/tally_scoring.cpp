@@ -2516,7 +2516,7 @@ void score_collision_tally(Particle& p)
 
 void score_point_tally(Particle& p)
 {
-  //std::cout << "mt = " << p.event_mt() <<std::endl;
+ // std::cout << "mt = " << p.event_mt() <<std::endl;
   col_counter ++;
   // Initialize 
   std::vector<Particle> ghost_particles; 
@@ -2587,13 +2587,18 @@ if (ghost_particles.size()==0)
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
-        //  std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
-         //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
+      //    std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
+       //   std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
           double total_MFP1 = get_MFP(ghost_p,total_distance);
           double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
+      //    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
+   // std::cout << "exp(-total_MFP1): " << exp(-total_MFP1) << std::endl;
+   // std::cout << "(2 * PI * total_distance * total_distance): " << (2 * PI * total_distance * total_distance) << std::endl;
+   // std::cout << "pdf_lab: " << pdf_lab << std::endl;
           //fluxes.push_back(flux1);
           //if (std::isnan(flux)) {flux=0;}
+         // std::cout << "myflux" << myflux <<std::endl;
           if ((p.type() != ParticleType::neutron) || (p.event_mt() != 2) )
      {
       double flux = 0;
@@ -2907,6 +2912,11 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   double p_tot_cm = p_cm.norm();
   
   double cos_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3 
+  if (std::abs(cos_lab) > 1.0)
+   { cos_lab= std::copysign(1.0, cos_lab);}
+
+  if (cos_lab==1){return;}
+
   double theta = std::acos(cos_lab);
   double sin_lab_sq = 1 - cos_lab*cos_lab;
 
@@ -2963,7 +2973,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     double derivative1 =  gamma*(1+q1*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
     double pdf1lab = pdf1cm/std::abs(derivative1);
     
-    
+    //std::cout << "cos_lab  "<< cos_lab <<std::endl;
     //std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
     //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
     //std::cout << "derivative1 PAPER  "<< (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
