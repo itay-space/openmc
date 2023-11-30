@@ -68,69 +68,115 @@ void UncorrelatedAngleEnergy::sample(
 }
 
 void UncorrelatedAngleEnergy::get_pdf(
-  double det_pos[3],double E_in,double& E_out,double mymu, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+  double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
 {
+  const auto& nuc {data::nuclides[p.event_nuclide()]};
+  const auto& rx {nuc->reactions_[p.event_index_mt()]};
+  double A = nuc->awr_;
   Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
                    det_pos[2]-p.r().z};
   Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
   // Sample cosine of scattering angle
-  double pdf = -1;
-  if (!angle_.empty()) {
-    mymu = angle_.sample(E_in, seed);
-    pdf = angle_.get_pdf(E_in,mymu,seed);
-  } else {
-    // no angle distribution given => assume isotropic for all energies
-    mymu = uniform_distribution(-1., 1., seed);
-    pdf = 0.5;
-  }
+  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
+  double m2= m1*A; // mass of target 
+  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
+  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
+  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
+  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab 
+  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2); // 
+  double E_cm = E1_tot + E2_tot;
+  Direction p_cm = p1 + p2;
+  double p_tot_cm = p_cm.norm();
+  double mu_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3
+
+
+
+
+
+  
 
   // Sample outgoing energy
   E_out = energy_->sample(E_in, seed);
 
- const auto& nuc {data::nuclides[p.event_nuclide()]};
- const auto& rx {nuc->reactions_[p.event_index_mt()]};
-
    if (rx->scatter_in_cm_) {
-
     //std::cout << " COM scatter "  <<std::endl;
-    double E_cm = E_out;
-
-    // determine outgoing energy in lab
-    double A = nuc->awr_;
-    double E_lab = E_cm + (E_in + 2.0 * mymu * (A + 1.0) * std::sqrt(E_in * E_cm)) /
-                 ((A + 1.0) * (A + 1.0));
-
-    // determine outgoing angle in lab
-    mymu = mymu * std::sqrt(E_cm / E_lab) + 1.0 / (A + 1.0) * std::sqrt(E_in / E_lab);
-   
-
+    double cond =E_out * (A+1)*(A+1) + E_in * (mu_lab*mu_lab - 1);
+   if ( cond >= 0)
+   {
+    double  E_lab1 = (E_out * (A+1)*(A+1) - 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
+    double  mu_cm1 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab1))*std::sqrt(E_lab1/E_out);
     Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab);
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab1);
     ghost_particles.push_back(ghost_particle);
-    pdfs_cm.push_back(pdf);
-    double deriv = sqrt(E_lab / E_out) /(1 - mymu / (A + 1) * sqrt(E_in /E_lab));
-    double pdf_mu_lab = pdf * deriv;
-    pdfs_lab.push_back(pdf_mu_lab);
-   // std::cout << " E in "  <<E_in << std::endl;
-    //std::cout << " E lab "  <<E_lab << std::endl;
-    //std::cout << " pdf lab "  <<(pdf_mu_lab) << std::endl;
-
+    double pdf_cm1 = -1;
+   if (!angle_.empty()) {
+    pdf_cm1 = angle_.get_pdf(E_in,mu_cm1,seed);
+  } else {
+    // no angle distribution given => assume isotropic for all energies
+    pdf_cm1 = 0.5;
   }
-  else
-  {
-     std::cout << " LAB scatter "  <<std::endl;
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_out);
-    ghost_particles.push_back(ghost_particle);
-    pdfs_cm.push_back(-999);
-    pdfs_lab.push_back(pdf);
-    std::cout << " pdf lab "  <<pdf << std::endl;
-    //std::cout << " E lab "  <<E_out<< std::endl;
+    pdfs_cm.push_back(pdf_cm1);
+    double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
+    double pdf_mu1_lab = pdf_cm1 * deriv;
+    pdfs_lab.push_back(pdf_mu1_lab);
+   // std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
+  // std::cout << "E_lab1: " << E_lab1 << std::endl;
+  //  std::cout << "mu_cm1: " << mu_cm1 << std::endl;
+  //  std::cout << "pdf_mu1_cm: " << pdf_cm1 << std::endl;
+
+    if (cond > 0)
+    {
+      double  E_lab2 = (E_out * (A+1)*(A+1) + 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
+      double  mu_cm2 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab2))*std::sqrt(E_lab2/E_out);
+      double pdf_cm2 = -1;
+   if (!angle_.empty()) {
+    pdf_cm2 = angle_.get_pdf(E_in,mu_cm2,seed);
+  } else {
+    // no angle distribution given => assume isotropic for all energies
+    pdf_cm2 = 0.5;
+  }
+      pdfs_cm.push_back(pdf_cm2);
+      Particle ghost_particle=Particle();
+      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab2);
+      ghost_particles.push_back(ghost_particle);
+      
+      double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
+      double pdf_mu2_lab = pdf_cm2 * deriv;
+      pdfs_lab.push_back(pdf_mu2_lab);
+     // std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
+   //  std::cout << "E_lab2: " << E_lab2 << std::endl;
+   // std::cout << "mu_cm2: " << mu_cm2 << std::endl;
+   // std::cout << "pdf_mu2_cm: " << pdf_cm2 << std::endl;
+    
+    }
+
+   }
+
+
+   
 
   }
  
+ if (!rx->scatter_in_cm_)
+   {
+    //finding mu_cm, E_out is in lab
+  double E_lab = E_out;
+  Particle ghost_particle=Particle();
+  ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab);
+  ghost_particles.push_back(ghost_particle);
+  pdfs_cm.push_back(-999);
+  double pdf_mu_lab;
+  if (!angle_.empty()) {
+    pdf_mu_lab = angle_.get_pdf(E_in,mu_lab,seed);
+  } else {
+    // no angle distribution given => assume isotropic for all energies
+    pdf_mu_lab = 0.5;
+  }
 
+  pdfs_lab.push_back(pdf_mu_lab);
+ 
+   }
 
 }
 

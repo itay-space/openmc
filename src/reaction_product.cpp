@@ -141,21 +141,22 @@ AngleEnergy* angleEnergyPtr = distribution_[distribution_index].get();
 
 if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(angleEnergyPtr)) {
     std::cout << "Used " << typeid(*correlatedAE).name() << " implementation." << std::endl;
+    //(*correlatedAE).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
     // Handle CorrelatedAngleEnergy
 } else if (KalbachMann* kalbachMann = dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
-   // std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
-    (*kalbachMann).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    //std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
+    (*kalbachMann).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
    // std::cout << "mypdf " << (*kalbachMann).get_pdf(E_in,E_out, 0.3333 , seed) << std::endl;
    // std::cout << " my E_in " << E_in <<std::endl;
    // std::cout << " my E out " << E_out <<std::endl;
     // Handle KalbachMann
 } else if (NBodyPhaseSpace* nBodyPS = dynamic_cast<NBodyPhaseSpace*>(angleEnergyPtr)) {
-   // std::cout << "Used " << typeid(*nBodyPS).name() << " implementation." << std::endl;
-    (*nBodyPS).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    //std::cout << "Used " << typeid(*nBodyPS).name() << " implementation." << std::endl;
+    (*nBodyPS).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
     // Handle NBodyPhaseSpace
 } else if (UncorrelatedAngleEnergy* uncorrelatedAE = dynamic_cast<UncorrelatedAngleEnergy*>(angleEnergyPtr)) {
-   // std::cout << "Used " << typeid(*uncorrelatedAE).name() << " implementation." << std::endl;
-    (*uncorrelatedAE).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    //std::cout << "Used " << typeid(*uncorrelatedAE).name() << " implementation." << std::endl;
+    (*uncorrelatedAE).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
     // Handle UncorrelatedAngleEnergy
 } else if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
     std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;

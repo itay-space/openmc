@@ -2560,7 +2560,7 @@ void score_point_tally(Particle& p)
 // Now check which distribution is used 
 if (!rx->scatter_in_cm_) 
 {
- std::cout<< "LABBBB" << std::endl;
+ //std::cout<< "LABBBB" << std::endl;
 }
 else
 {
@@ -2587,8 +2587,8 @@ if (ghost_particles.size()==0)
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
-         // std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
-        // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
+        //  std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
+         //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
           double total_MFP1 = get_MFP(ghost_p,total_distance);
           double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
