@@ -11,6 +11,7 @@
 #include "openmc/distribution.h"
 #include "openmc/endf.h"
 #include "openmc/vector.h"
+#include "openmc/particle.h"
 
 namespace openmc {
 
@@ -41,7 +42,7 @@ public:
   void sample(
     double E_in, double& E_out, double& mu, uint64_t* seed) const override;
  void get_pdf(
-  double E_in, double& E_out, double& mu, uint64_t* seed) const;
+  double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const;
 
   // energy property
   vector<double>& energy() { return energy_; }

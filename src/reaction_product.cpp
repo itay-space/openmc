@@ -140,8 +140,8 @@ void ReactionProduct::get_pdf(
 AngleEnergy* angleEnergyPtr = distribution_[distribution_index].get();
 
 if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*correlatedAE).name() << " implementation." << std::endl;
-    //(*correlatedAE).get_pdf(det_pos,E_in,E_out,mymu,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+   // std::cout << "Used " << typeid(*correlatedAE).name() << " implementation." << std::endl;
+    (*correlatedAE).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
     // Handle CorrelatedAngleEnergy
 } else if (KalbachMann* kalbachMann = dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
     //std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
