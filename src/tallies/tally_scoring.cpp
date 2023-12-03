@@ -2516,8 +2516,11 @@ void score_collision_tally(Particle& p)
 
 void score_point_tally(Particle& p)
 {
- // std::cout << "mt = " << p.event_mt() <<std::endl;
+  double yield = 1;
+ //std::cout << "mt = " << p.event_mt() <<std::endl;
   col_counter ++;
+  const auto& nuc {data::nuclides[p.event_nuclide()]};
+  const auto& rx {nuc->reactions_[p.event_index_mt()]};
   // Initialize 
   std::vector<Particle> ghost_particles; 
   std::vector<double> pdfs_cm;
@@ -2552,11 +2555,15 @@ void score_point_tally(Particle& p)
   double mu;
   
 
- const auto& nuc {data::nuclides[p.event_nuclide()]};
- const auto& rx {nuc->reactions_[p.event_index_mt()]};
+ 
  rx->products_[0].get_pdf(det_pos,E_in, E_out, mu, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
 
-  
+ yield = (*rx->products_[0].yield_)(p.E_last());
+          if (std::floor(yield) != yield && yield > 0)
+        {
+              yield = 1;
+          }
+  //std::cout << "yield " << yield <<std::endl;
 // Now check which distribution is used 
 if (!rx->scatter_in_cm_) 
 {
@@ -2591,7 +2598,10 @@ if (ghost_particles.size()==0)
        //   std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
           double total_MFP1 = get_MFP(ghost_p,total_distance);
-          double myflux = ghost_p.wgt()*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
+
+          
+
+          double myflux = (yield*ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
       //    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
    // std::cout << "exp(-total_MFP1): " << exp(-total_MFP1) << std::endl;
    // std::cout << "(2 * PI * total_distance * total_distance): " << (2 * PI * total_distance * total_distance) << std::endl;
