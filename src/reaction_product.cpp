@@ -15,6 +15,7 @@
 #include "openmc/secondary_nbody.h"
 #include "openmc/secondary_uncorrelated.h"
 #include "openmc/secondary_thermal.h"
+#include "openmc/tallies/tally_scoring.h"
 
 namespace openmc {
 
@@ -109,9 +110,11 @@ void ReactionProduct::sample(
 }
 
 void ReactionProduct::get_pdf(
-  double det_pos[3],double E_in,double& E_out,double mymu, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+  double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
 {
-  double mypdf = 0;
+ 
+  double det_pos[3] = {0,0,0};
+  get_det_pos(det_pos);
 
   int distribution_index;
   auto n = applicability_.size();
@@ -146,7 +149,7 @@ if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(a
 } else if (KalbachMann* kalbachMann = dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
     //std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
     (*kalbachMann).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
-   // std::cout << "mypdf " << (*kalbachMann).get_pdf(E_in,E_out, 0.3333 , seed) << std::endl;
+   
    // std::cout << " my E_in " << E_in <<std::endl;
    // std::cout << " my E out " << E_out <<std::endl;
     // Handle KalbachMann
@@ -181,7 +184,8 @@ if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(a
 }
 
 
- //return mypdf;
+ 
 }
+
 
 } // namespace openmc

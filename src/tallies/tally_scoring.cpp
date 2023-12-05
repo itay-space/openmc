@@ -2556,7 +2556,7 @@ void score_point_tally(Particle& p)
   
 
  
- rx->products_[0].get_pdf(det_pos,E_in, E_out, mu, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
+ rx->products_[0].get_pdf(E_in, E_out, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
 
  yield = (*rx->products_[0].yield_)(p.E_last());
           if (std::floor(yield) != yield && yield > 0)
@@ -2600,7 +2600,7 @@ if (ghost_particles.size()==0)
           double total_MFP1 = get_MFP(ghost_p,total_distance);
 
           
-
+ // be careful of fission yield
           double myflux = (yield*ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
       //    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
    // std::cout << "exp(-total_MFP1): " << exp(-total_MFP1) << std::endl;

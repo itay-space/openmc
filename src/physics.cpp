@@ -195,6 +195,10 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
   // Counter for the number of fission sites successfully stored to the shared
   // fission bank or the secondary particle bank
   int n_sites_stored;
+  // Initialize for point detector
+  std::vector<Particle> ghost_particles; 
+  std::vector<double> pdfs_cm;
+  std::vector<double> pdfs_lab;
 
   for (n_sites_stored = 0; n_sites_stored < nu; n_sites_stored++) {
     // Initialize fission site object with particle data
@@ -209,6 +213,7 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
 
     // Sample delayed group and angle/energy for fission reaction
     sample_fission_neutron(i_nuclide, rx, &site, p);
+    score_fission_neutron(i_nuclide, rx, &site, p,pdfs_cm ,pdfs_lab, ghost_particles);
 
     // Store fission site in bank
     if (use_fission_bank) {
@@ -1100,6 +1105,84 @@ void sample_fission_neutron(
 
   // Sample azimuthal angle uniformly in [0, 2*pi) and assign angle
   site->u = rotate_angle(p.u(), mu, nullptr, seed);
+}
+
+void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles)
+{
+   
+
+ // Get attributes of particle
+  double E_in = p.E();
+  uint64_t* seed = p.current_seed();
+
+  // Determine total nu, delayed nu, and delayed neutron fraction
+  const auto& nuc {data::nuclides[i_nuclide]};
+  double nu_t = nuc->nu(E_in, Nuclide::EmissionMode::total);
+  double nu_d = nuc->nu(E_in, Nuclide::EmissionMode::delayed);
+  double beta = nu_d / nu_t;
+
+  if (prn(seed) < beta) {
+    // ====================================================================
+    // DELAYED NEUTRON SAMPLED
+
+    // sampled delayed precursor group
+    double xi = prn(seed) * nu_d;
+    double prob = 0.0;
+    int group;
+    for (group = 1; group < nuc->n_precursor_; ++group) {
+      // determine delayed neutron precursor yield for group j
+      double yield = (*rx.products_[group].yield_)(E_in);
+
+      // Check if this group is sampled
+      prob += yield;
+      if (xi < prob)
+        break;
+    }
+
+    // if the sum of the probabilities is slightly less than one and the
+    // random number is greater, j will be greater than nuc %
+    // n_precursor -- check for this condition
+    group = std::min(group, nuc->n_precursor_);
+
+    // set the delayed group for the particle born from fission
+    site->delayed_group = group;
+
+  } else {
+    // ====================================================================
+    // PROMPT NEUTRON SAMPLED
+
+    // set the delayed group for the particle born from fission to 0
+    site->delayed_group = 0;
+  }
+
+  // sample from prompt neutron energy distribution
+  int n_sample = 0;
+  double mu;
+  while (true) {
+    // erase previous elemts bc they were rejected.
+    pdfs_cm.clear();
+    pdfs_lab.clear();
+    ghost_particles.clear();
+    
+    rx.products_[site->delayed_group].get_pdf(E_in, site->E, seed,p ,pdfs_cm ,pdfs_lab, ghost_particles);
+
+    // resample if energy is greater than maximum neutron energy
+    constexpr int neutron = static_cast<int>(ParticleType::neutron);
+    if (site->E < data::energy_max[neutron])
+      break;
+
+    // check for large number of resamples
+    ++n_sample;
+    if (n_sample == MAX_SAMPLE) {
+      // particle_write_restart(p)
+      fatal_error("Resampled energy distribution maximum number of times "
+                  "for nuclide " +
+                  nuc->name_);
+    }
+  }
+
+  
+
 }
 
 void inelastic_scatter(const Nuclide& nuc, const Reaction& rx, Particle& p)
