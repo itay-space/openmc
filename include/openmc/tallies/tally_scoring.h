@@ -88,6 +88,11 @@ void score_analog_tally_ce(Particle& p);
 
 //! Score tallies based on a simple count of events (for multigroup).
 //
+void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
+  int filter_index, double filter_weight, int i_nuclide, double atom_density,
+  double flux);
+
+
 //! Analog tallies are triggered at every collision, not every event.
 //
 //! \param p The particle being tracked

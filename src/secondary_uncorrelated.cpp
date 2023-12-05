@@ -70,8 +70,13 @@ void UncorrelatedAngleEnergy::sample(
 void UncorrelatedAngleEnergy::get_pdf(
   double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
 {
+  bool COM = false;
   const auto& nuc {data::nuclides[p.event_nuclide()]};
+  if (p.event_index_mt() != -999)
+  {
   const auto& rx {nuc->reactions_[p.event_index_mt()]};
+  COM = rx->scatter_in_cm_;
+  }
   double A = nuc->awr_;
   Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
@@ -99,7 +104,7 @@ void UncorrelatedAngleEnergy::get_pdf(
   // Sample outgoing energy
   E_out = energy_->sample(E_in, seed);
 
-   if (rx->scatter_in_cm_) {
+   if (COM) {
     //std::cout << " COM scatter "  <<std::endl;
     double cond =E_out * (A+1)*(A+1) + E_in * (mu_lab*mu_lab - 1);
    if ( cond >= 0)
@@ -178,7 +183,7 @@ void UncorrelatedAngleEnergy::get_pdf(
 
   }
  
- if (!rx->scatter_in_cm_)
+ if (!COM)
    {
     //finding mu_cm, E_out is in lab
   double E_lab = E_out;

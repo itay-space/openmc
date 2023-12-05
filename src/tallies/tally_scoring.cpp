@@ -2516,6 +2516,7 @@ void score_collision_tally(Particle& p)
 
 void score_point_tally(Particle& p)
 {
+  //std::cout<< "i of reaction tally scoring" << p.event_index_mt()<<std::endl;
   double yield = 1;
  //std::cout << "mt = " << p.event_mt() <<std::endl;
   col_counter ++;
@@ -2544,7 +2545,7 @@ void score_point_tally(Particle& p)
    {
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }
-   if (p.event_mt() != 2){ // Inelastic
+   if (p.event_mt() != 2 && p.event_mt() != 18){ // Inelastic
   //std::cout << "mt = " << p.event_mt() <<std::endl;
   // make sure v_t is 0
   // copy energy of neutron
