@@ -655,6 +655,77 @@ void IncoherentInelasticAE::sample(
   mu += std::min(mu - mu_left, mu_right - mu) * (prn(seed) - 0.5);
 }
 
+double IncoherentInelasticAE::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  // Get index and interpolation factor for inelastic grid
+  int i;
+  double f;
+  get_energy_index(energy_, E_in, i, f);
+
+  // Pick closer energy based on interpolation factor
+  int l = f > 0.5 ? i + 1 : i;
+
+  // Determine outgoing energy bin
+  // (First reset n_energy_out to the right value)
+  auto n = distribution_[l].n_e_out;
+  double r1 = prn(seed);
+  double c_j = distribution_[l].e_out_cdf[0];
+  double c_j1;
+  std::size_t j;
+  for (j = 0; j < n - 1; ++j) {
+    c_j1 = distribution_[l].e_out_cdf[j + 1];
+    if (r1 < c_j1)
+      break;
+    c_j = c_j1;
+  }
+
+  // check to make sure j is <= n_energy_out - 2
+  j = std::min(j, n - 2);
+
+  // Get the data to interpolate between
+  double E_l_j = distribution_[l].e_out[j];
+  double p_l_j = distribution_[l].e_out_pdf[j];
+
+  // Next part assumes linear-linear interpolation in standard
+  double E_l_j1 = distribution_[l].e_out[j + 1];
+  double p_l_j1 = distribution_[l].e_out_pdf[j + 1];
+
+  // Find secondary energy (variable E)
+  double frac = (p_l_j1 - p_l_j) / (E_l_j1 - E_l_j);
+  if (frac == 0.0) {
+    E_out = E_l_j + (r1 - c_j) / p_l_j;
+  } else {
+    E_out = E_l_j +
+            (std::sqrt(std::max(0.0, p_l_j * p_l_j + 2.0 * frac * (r1 - c_j))) -
+              p_l_j) /
+              frac;
+  }
+
+  // Adjustment of outgoing energy
+  double E_l = energy_[l];
+  if (E_out < 0.5 * E_l) {
+    E_out *= 2.0 * E_in / E_l - 1.0;
+  } else {
+    E_out += E_in - E_l;
+  }
+
+  // Sample outgoing cosine bin
+  int n_mu = distribution_[l].mu.shape()[1];
+  const auto& mu_l = distribution_[l].mu;
+  f = (r1 - c_j) / (c_j1 - c_j);
+
+  std::vector<double> mu_vector;
+   
+   for (int k = 0; k < n_mu; ++k) {
+        double mu_k = mu_l(j, k) + f * (mu_l(j + 1, k) - mu_l(j, k));
+        mu_vector.push_back(mu_k);
+    }
+
+ return get_pdf_discrete(mu_vector,mu,n_mu);
+  
+}
+
 //==============================================================================
 // MixedElasticAE implementation
 //==============================================================================
