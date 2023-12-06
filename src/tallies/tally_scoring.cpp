@@ -2541,7 +2541,7 @@ void score_point_tally(Particle& p)
   double det_pos[3] = {0,0,0};
   get_det_pos(det_pos);
   
-   if (p.event_mt() == 2)
+   if (p.event_mt() == 2 && p.event_index_mt() != -1234)
    {
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }

@@ -698,7 +698,7 @@ void scatter(Particle& p, int i_nuclide)
     // S(A,B) SCATTERING
 
     sab_scatter(i_nuclide, micro.index_sab, p);
-
+    p.event_index_mt() = -1234; // to distinguish from elastic
     p.event_mt() = ELASTIC;
     sampled = true;
   }
