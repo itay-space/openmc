@@ -26,6 +26,208 @@ void get_energy_index(
   }
 }
 
+// Structure to hold information about nearest neighbors and their counts
+struct Neighbors {
+    double a_0;
+    double a_1;
+    double b_0;
+    double b_1;
+    int leftCount;  // Number of neighbors to the left
+    int rightCount; // Number of neighbors to the right
+};
+
+Neighbors findNearestNeighbors(const std::vector<double>& sortedVector, double mu_0) {
+    Neighbors result;
+    result.leftCount = 0;
+    result.rightCount = 0;
+
+    // Find the iterator pointing to the first element that is not less than mu_0
+    auto it = std::lower_bound(sortedVector.begin(), sortedVector.end(), mu_0);
+
+    // Process neighbors to the left
+    if (it != sortedVector.begin()) {
+        --it;
+        result.a_0 = *it;
+        ++result.leftCount;
+
+        // Process the second left neighbor, if available
+        if (it != sortedVector.begin()) {
+            --it;
+            result.a_1 = *it;
+            ++result.leftCount;
+        } else {
+            result.a_1 = result.a_0; // If no second left neighbor, set it to the same as the first
+        }
+    } else {
+        result.a_0 = result.a_1 = mu_0; // If no left neighbors, set both to mu_0
+    }
+
+    // Find the iterator pointing to the first element that is greater than mu_0
+    it = std::upper_bound(sortedVector.begin(), sortedVector.end(), mu_0);
+
+    // Process neighbors to the right
+    if (it != sortedVector.end()) {
+        result.b_0 = *it;
+        ++result.rightCount;
+
+        // Process the second right neighbor, if available
+        if (++it != sortedVector.end()) {
+            result.b_1 = *it;
+            ++result.rightCount;
+        } else {
+            result.b_1 = result.b_0; // If no second right neighbor, set it to the same as the first
+        }
+    } else {
+        result.b_0 = result.b_1 = mu_0; // If no right neighbors, set both to mu_0
+    }
+
+    // Return the result
+    return result;
+}
+
+int checkNeighborCase(Neighbors neighbors) {
+    
+    if (neighbors.leftCount == 2 && neighbors.rightCount == 2)
+    return 1;
+    if (neighbors.leftCount == 0 && neighbors.rightCount == 2)
+    return 2;
+    if (neighbors.leftCount == 1 && neighbors.rightCount == 2)
+    return 3;
+    if (neighbors.leftCount == 2 && neighbors.rightCount == 1)
+    return 4;
+    if (neighbors.leftCount == 2 && neighbors.rightCount == 0)
+    return 5;
+
+    return -1;
+
+
+}
+
+double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,double nu) {
+  // Use findNearestNeighbors to get information about nearest neighbors
+   Neighbors neighbors = findNearestNeighbors(sortedVector, mu_0);
+   int mycase = checkNeighborCase(neighbors);
+   double pdf;
+   double a_0 = neighbors.a_0;
+   double a_1 = neighbors.a_1;
+   double b_0 = neighbors.b_0;
+   double b_1 = neighbors.b_1;
+   switch (mycase) {
+   case 1:
+   {
+            std::cout << "You chose option 1." << std::endl;
+            // Calculate Delta_a and Delta_b
+        double delta_a = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
+        double delta_b = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
+
+            // Check conditions and calculate pdf
+            if (mu_0 >= a_0 && mu_0 < a_0 + delta_a) {
+                pdf = 1.0 / (nu * 2.0 * delta_a);
+            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
+                pdf = 1.0 / (nu * 2.0 * delta_b);
+            } else if (mu_0 > a_0 + delta_a && mu_0 <= b_0 - delta_b) {
+                pdf = 0.0;
+            } else {
+                std::cout << "Invalid value of mu_0 for Case 1." << std::endl;
+                pdf = -1; // 
+            }
+            break;
+
+   }
+  case 2:
+  {
+            std::cout << "You chose option 2." << std::endl;
+                    // Calculate Delta_b for Case 2
+            double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
+
+            // Check conditions and calculate pdf
+            if (mu_0 > b_0 - delta_b_case2 && mu_0 <= b_0) {
+                pdf = 1.0 / (nu * 2.0 * delta_b_case2);
+            } else if (mu_0 >= -1 && mu_0 <= b_0 - delta_b_case2) {
+                pdf = 0.0;
+            } else {
+                std::cout << "Invalid value of mu_0 for Case 2." << std::endl;
+                pdf = -1; // 
+            }
+            break;
+
+  }
+    case 3:
+    {
+            std::cout << "You chose option 3." << std::endl;
+                    // Calculate Delta_a and Delta_b for Case 3
+            double delta_a_case3 = 0.5 * std::min(b_0 - a_0, a_0 - (-1));
+            double delta_b_case3 = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
+
+            // Check conditions and calculate pdf
+            if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case3) {
+                pdf = 1.0 / (nu * 2.0 * delta_a_case3);
+            } else if (mu_0 > b_0 - delta_b_case3 && mu_0 <= b_0) {
+                pdf = 1.0 / (nu * 2.0 * delta_b_case3);
+            } else if (mu_0 > a_0 + delta_a_case3 && mu_0 <= b_0 - delta_b_case3) {
+                pdf = 0.0;
+            } else {
+                std::cout << "Invalid value of mu_0 for Case 3." << std::endl;
+                pdf = -1; // 
+            }
+            break;
+
+    }
+    case 4:
+    {
+            std::cout << "You chose option 4." << std::endl;
+// Calculate Delta_a and Delta_b for Case 4
+    double delta_a_case4 = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
+    double delta_b_case4 = 0.5 * std::min(1 - b_0, b_0 - a_0);
+
+    // Check conditions and calculate pdf
+    if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case4) {
+        pdf = 1.0 / (nu * 2.0 * delta_a_case4);
+    } else if (mu_0 > b_0 - delta_b_case4 && mu_0 <= b_0) {
+        pdf = 1.0 / (nu * 2.0 * delta_b_case4);
+    } else if (mu_0 > a_0 + delta_a_case4 && mu_0 <= b_0 - delta_b_case4) {
+        pdf = 0.0;
+    } else {
+        std::cout << "Invalid value of mu_0 for Case 4." << std::endl;
+        pdf = -1; // 
+    }
+
+            break; 
+
+    }
+      case 5:
+      {
+            std::cout << "You chose option 5." << std::endl;
+            // Calculate Delta_a for Case 5
+    double delta_a_case5 = 0.5 * std::min(1 - a_0, a_0 - a_1);
+
+    // Check conditions and calculate pdf
+    if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case5) {
+        pdf = 1.0 / (nu * 2.0 * delta_a_case5);
+    } else if (mu_0 > a_0 + delta_a_case5 && mu_0 <= 1) {
+        pdf = 0.0;
+    } else {
+        std::cout << "Invalid value of mu_0 for Case 5." << std::endl;
+        pdf = -1; // 
+    }
+
+
+            break;          
+      }            
+        default:
+        {
+            std::cout << "Invalid case." << std::endl;
+            pdf = -1;
+        }
+    }
+
+return pdf;
+
+
+}
+
+
+
 //==============================================================================
 // CoherentElasticAE implementation
 //==============================================================================
@@ -56,6 +258,38 @@ void CoherentElasticAE::sample(
   mu = 1.0 - 2.0 * energies[k] / E_in;
 }
 
+double CoherentElasticAE::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  // Energy doesn't change in elastic scattering (ENDF-102, Eq. 7-1)
+  double pdf;
+  E_out = E_in;
+  double E_k = E_in*(1-mu)/2;
+
+  const auto& energies {xs_.bragg_edges()};
+  const auto& factors = xs_.factors();
+
+  Expects(E_in >= energies.front());
+
+  int k = lower_bound_index(energies.begin(), energies.end(), E_k);
+  double D_k = factors[k];
+
+
+  Neighbors neighbors = findNearestNeighbors(factors, D_k);
+  double D_nu = factors.back();
+  if (neighbors.leftCount > 0)
+  {
+    double D_kminus1 = neighbors.a_0;
+    pdf = (D_k - D_kminus1)/D_nu * get_pdf_discrete(factors,D_k,1);
+  }
+  if (neighbors.rightCount > 0)
+  {
+    double D_kplus1 = neighbors.b_0;
+    pdf = (D_k - D_kplus1)/D_nu * get_pdf_discrete(factors,D_k,1);
+  }
+  return pdf;
+}
+
 //==============================================================================
 // IncoherentElasticAE implementation
 //==============================================================================
@@ -74,6 +308,21 @@ void IncoherentElasticAE::sample(
 
   // Energy doesn't change in elastic scattering (ENDF-102, Eq. 7.4)
   E_out = E_in;
+}
+double IncoherentElasticAE::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  // Sample angle by inverting the distribution in ENDF-102, Eq. 7.4
+  double c = 2 * E_in * debye_waller_;
+  E_out = E_in;
+
+  double A = c/(1-std::exp(-2.0 * c)); //normalization factor
+  double pdf = A*std::exp(-c * (1-mu));
+  return pdf;
+  
+
+  // Energy doesn't change in elastic scattering (ENDF-102, Eq. 7.4)
+  
 }
 
 //==============================================================================
@@ -366,207 +615,6 @@ void MixedElasticAE::sample(
   } else {
     incoherent_dist_->sample(E_in, E_out, mu, seed);
   }
-}
-
-
-// Structure to hold information about nearest neighbors and their counts
-struct Neighbors {
-    double a_0;
-    double a_1;
-    double b_0;
-    double b_1;
-    int leftCount;  // Number of neighbors to the left
-    int rightCount; // Number of neighbors to the right
-};
-
-Neighbors findNearestNeighbors(const std::vector<double>& sortedVector, double mu_0) {
-    Neighbors result;
-    result.leftCount = 0;
-    result.rightCount = 0;
-
-    // Find the iterator pointing to the first element that is not less than mu_0
-    auto it = std::lower_bound(sortedVector.begin(), sortedVector.end(), mu_0);
-
-    // Process neighbors to the left
-    if (it != sortedVector.begin()) {
-        --it;
-        result.a_0 = *it;
-        ++result.leftCount;
-
-        // Process the second left neighbor, if available
-        if (it != sortedVector.begin()) {
-            --it;
-            result.a_1 = *it;
-            ++result.leftCount;
-        } else {
-            result.a_1 = result.a_0; // If no second left neighbor, set it to the same as the first
-        }
-    } else {
-        result.a_0 = result.a_1 = mu_0; // If no left neighbors, set both to mu_0
-    }
-
-    // Find the iterator pointing to the first element that is greater than mu_0
-    it = std::upper_bound(sortedVector.begin(), sortedVector.end(), mu_0);
-
-    // Process neighbors to the right
-    if (it != sortedVector.end()) {
-        result.b_0 = *it;
-        ++result.rightCount;
-
-        // Process the second right neighbor, if available
-        if (++it != sortedVector.end()) {
-            result.b_1 = *it;
-            ++result.rightCount;
-        } else {
-            result.b_1 = result.b_0; // If no second right neighbor, set it to the same as the first
-        }
-    } else {
-        result.b_0 = result.b_1 = mu_0; // If no right neighbors, set both to mu_0
-    }
-
-    // Return the result
-    return result;
-}
-
-int checkNeighborCase(Neighbors neighbors) {
-    
-    if (neighbors.leftCount == 2 && neighbors.rightCount == 2)
-    return 1;
-    if (neighbors.leftCount == 0 && neighbors.rightCount == 2)
-    return 2;
-    if (neighbors.leftCount == 1 && neighbors.rightCount == 2)
-    return 3;
-    if (neighbors.leftCount == 2 && neighbors.rightCount == 1)
-    return 4;
-    if (neighbors.leftCount == 2 && neighbors.rightCount == 0)
-    return 5;
-
-    return -1;
-
-
-}
-
-double get_pdf(const std::vector<double>& sortedVector, double mu_0,double nu) {
-  // Use findNearestNeighbors to get information about nearest neighbors
-   Neighbors neighbors = findNearestNeighbors(sortedVector, mu_0);
-   int mycase = checkNeighborCase(neighbors);
-   double pdf;
-   double a_0 = neighbors.a_0;
-   double a_1 = neighbors.a_1;
-   double b_0 = neighbors.b_0;
-   double b_1 = neighbors.b_1;
-   switch (mycase) {
-   case 1:
-   {
-            std::cout << "You chose option 1." << std::endl;
-            // Calculate Delta_a and Delta_b
-        double delta_a = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
-        double delta_b = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
-
-            // Check conditions and calculate pdf
-            if (mu_0 >= a_0 && mu_0 < a_0 + delta_a) {
-                pdf = 1.0 / (nu * 2.0 * delta_a);
-            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b);
-            } else if (mu_0 > a_0 + delta_a && mu_0 <= b_0 - delta_b) {
-                pdf = 0.0;
-            } else {
-                std::cout << "Invalid value of mu_0 for Case 1." << std::endl;
-                pdf = -1; // 
-            }
-            break;
-
-   }
-  case 2:
-  {
-            std::cout << "You chose option 2." << std::endl;
-                    // Calculate Delta_b for Case 2
-            double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
-
-            // Check conditions and calculate pdf
-            if (mu_0 > b_0 - delta_b_case2 && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b_case2);
-            } else if (mu_0 >= -1 && mu_0 <= b_0 - delta_b_case2) {
-                pdf = 0.0;
-            } else {
-                std::cout << "Invalid value of mu_0 for Case 2." << std::endl;
-                pdf = -1; // 
-            }
-            break;
-
-  }
-    case 3:
-    {
-            std::cout << "You chose option 3." << std::endl;
-                    // Calculate Delta_a and Delta_b for Case 3
-            double delta_a_case3 = 0.5 * std::min(b_0 - a_0, a_0 - (-1));
-            double delta_b_case3 = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
-
-            // Check conditions and calculate pdf
-            if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case3) {
-                pdf = 1.0 / (nu * 2.0 * delta_a_case3);
-            } else if (mu_0 > b_0 - delta_b_case3 && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b_case3);
-            } else if (mu_0 > a_0 + delta_a_case3 && mu_0 <= b_0 - delta_b_case3) {
-                pdf = 0.0;
-            } else {
-                std::cout << "Invalid value of mu_0 for Case 3." << std::endl;
-                pdf = -1; // 
-            }
-            break;
-
-    }
-    case 4:
-    {
-            std::cout << "You chose option 4." << std::endl;
-// Calculate Delta_a and Delta_b for Case 4
-    double delta_a_case4 = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
-    double delta_b_case4 = 0.5 * std::min(1 - b_0, b_0 - a_0);
-
-    // Check conditions and calculate pdf
-    if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case4) {
-        pdf = 1.0 / (nu * 2.0 * delta_a_case4);
-    } else if (mu_0 > b_0 - delta_b_case4 && mu_0 <= b_0) {
-        pdf = 1.0 / (nu * 2.0 * delta_b_case4);
-    } else if (mu_0 > a_0 + delta_a_case4 && mu_0 <= b_0 - delta_b_case4) {
-        pdf = 0.0;
-    } else {
-        std::cout << "Invalid value of mu_0 for Case 4." << std::endl;
-        pdf = -1; // 
-    }
-
-            break; 
-
-    }
-      case 5:
-      {
-            std::cout << "You chose option 5." << std::endl;
-            // Calculate Delta_a for Case 5
-    double delta_a_case5 = 0.5 * std::min(1 - a_0, a_0 - a_1);
-
-    // Check conditions and calculate pdf
-    if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case5) {
-        pdf = 1.0 / (nu * 2.0 * delta_a_case5);
-    } else if (mu_0 > a_0 + delta_a_case5 && mu_0 <= 1) {
-        pdf = 0.0;
-    } else {
-        std::cout << "Invalid value of mu_0 for Case 5." << std::endl;
-        pdf = -1; // 
-    }
-
-
-            break;          
-      }            
-        default:
-        {
-            std::cout << "Invalid case." << std::endl;
-            pdf = -1;
-        }
-    }
-
-return pdf;
-
-
 }
 
 
