@@ -823,6 +823,20 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
   data::thermal_scatt[i_sab]->data_[i_temp].sample(
     micro, p.E(), &E_out, &p.mu(), p.current_seed());
 
+  double E_out_ghost;
+  double det_pos[3] = {0,0,0};
+  get_det_pos(det_pos);
+  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+                   det_pos[1]-p.r().y,
+                   det_pos[2]-p.r().z};
+  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
+  double mu_det = u_lab_unit.dot(p.u_last()); // target velocity is treated as zero
+  double pdf = data::thermal_scatt[i_sab]->data_[i_temp].get_pdf(
+                    micro, p.E(), E_out_ghost,mu_det, p.current_seed());
+  Particle ghost_particle=Particle();
+  //std::cout << "E out ghost " << E_out_ghost << std::endl;
+  ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_out_ghost);
+
   // Set energy to outgoing, change direction of particle
   p.E() = E_out;
   p.u() = rotate_angle(p.u(), p.mu(), nullptr, p.current_seed());

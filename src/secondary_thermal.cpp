@@ -115,7 +115,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
    switch (mycase) {
    case 1:
    {
-            std::cout << "You chose option 1." << std::endl;
+          //  std::cout << "You chose option 1." << std::endl;
             // Calculate Delta_a and Delta_b
         double delta_a = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
         double delta_b = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
@@ -136,7 +136,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
    }
   case 2:
   {
-            std::cout << "You chose option 2." << std::endl;
+           // std::cout << "You chose option 2." << std::endl;
                     // Calculate Delta_b for Case 2
             double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
 
@@ -154,7 +154,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
   }
     case 3:
     {
-            std::cout << "You chose option 3." << std::endl;
+           // std::cout << "You chose option 3." << std::endl;
                     // Calculate Delta_a and Delta_b for Case 3
             double delta_a_case3 = 0.5 * std::min(b_0 - a_0, a_0 - (-1));
             double delta_b_case3 = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
@@ -175,7 +175,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
     }
     case 4:
     {
-            std::cout << "You chose option 4." << std::endl;
+          //  std::cout << "You chose option 4." << std::endl;
 // Calculate Delta_a and Delta_b for Case 4
     double delta_a_case4 = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
     double delta_b_case4 = 0.5 * std::min(1 - b_0, b_0 - a_0);
@@ -197,7 +197,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
     }
       case 5:
       {
-            std::cout << "You chose option 5." << std::endl;
+            //std::cout << "You chose option 5." << std::endl;
             // Calculate Delta_a for Case 5
     double delta_a_case5 = 0.5 * std::min(1 - a_0, a_0 - a_1);
 

@@ -2516,6 +2516,9 @@ void score_collision_tally(Particle& p)
 
 void score_point_tally(Particle& p)
 {
+  if ((p.event_mt() == 101) || (p.event_mt() == 18) || (p.event_index_mt() == -1234))
+   return; // absorption or fission or s(a,b)
+
   //std::cout<< "i of reaction tally scoring" << p.event_index_mt()<<std::endl;
   double yield = 1;
  //std::cout << "mt = " << p.event_mt() <<std::endl;
@@ -2533,10 +2536,7 @@ void score_point_tally(Particle& p)
   std::cout << "p.E_last()  "<< p.E_last() <<std::endl;
   return; //sometimes the get_pdf function turns p.r() into nan
   }
-  if (p.event_mt() == 101) // absorption
-  {
-    return;
-  }
+
   // Get position (x,y,z) of detector
   double det_pos[3] = {0,0,0};
   get_det_pos(det_pos);
@@ -2545,26 +2545,26 @@ void score_point_tally(Particle& p)
    {
    get_pdf_to_point_elastic(det_pos , p , pdfs_cm ,pdfs_lab, ghost_particles);
    }
-   if (p.event_mt() != 2 && p.event_mt() != 18){ // Inelastic
+   if (p.event_mt() != 2){ // Inelastic
   //std::cout << "mt = " << p.event_mt() <<std::endl;
   // make sure v_t is 0
   // copy energy of neutron
    double E_in = p.E_last();
   // std::cout << "E_in collision " << E_in<<std::endl;
   // sample outgoing energy and scattering cosine (but don't use the angle)
-  double E_out;
-  double mu;
-  
+   double E_out;
+   double mu;
+
 
  
- rx->products_[0].get_pdf(E_in, E_out, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
+   rx->products_[0].get_pdf(E_in, E_out, p.current_seed(),p ,pdfs_cm ,pdfs_lab, ghost_particles);
 
  yield = (*rx->products_[0].yield_)(p.E_last());
           if (std::floor(yield) != yield && yield > 0)
-        {
+         {
               yield = 1;
           }
-  //std::cout << "yield " << yield <<std::endl;
+//std::cout << "yield " << yield <<std::endl;
 // Now check which distribution is used 
 if (!rx->scatter_in_cm_) 
 {
