@@ -379,6 +379,28 @@ void IncoherentElasticAEDiscrete::sample(
   E_out = E_in;
 }
 
+double IncoherentElasticAEDiscrete::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  // Get index and interpolation factor for elastic grid
+  int i;
+  double f;
+  get_energy_index(energy_, E_in, i, f);
+  // Energy doesn't change in elastic scattering
+  E_out = E_in;
+  int n_mu = mu_out_.shape()[1];
+  
+   std::vector<double> mu_vector;
+   
+   for (int k = 0; k < n_mu; ++k) {
+        double mu_k = mu_out_(i, k) + f * (mu_out_(i + 1, k) - mu_out_(i, k));
+        mu_vector.push_back(mu_k);
+    }
+
+   return get_pdf_discrete(mu_vector,mu,n_mu);
+  
+}
+
 //==============================================================================
 // IncoherentInelasticAEDiscrete implementation
 //==============================================================================
@@ -443,14 +465,66 @@ void IncoherentInelasticAEDiscrete::sample(
   // Sample outgoing cosine bin
   int m = mu_out_.shape()[2];
   int k = prn(seed) * m;
-
-  // Determine outgoing cosine corresponding to E_in[i] and E_in[i+1]
-  double mu_ijk = mu_out_(i, j, k);
-  double mu_i1jk = mu_out_(i + 1, j, k);
-
-  // Cosine of angle between incoming and outgoing neutron
+   
+   // Determine outgoing cosine corresponding to E_in[i] and E_in[i+1]
+        double mu_ijk = mu_out_(i, j, k);
+        double mu_i1jk = mu_out_(i + 1, j, k);
+        
+ // Cosine of angle between incoming and outgoing neutron
   mu = (1 - f) * mu_ijk + f * mu_i1jk;
 }
+double IncoherentInelasticAEDiscrete::get_pdf(
+  double E_in, double& E_out, double& mu, uint64_t* seed) const
+{
+  // Get index and interpolation factor for inelastic grid
+  int i;
+  double f;
+  get_energy_index(energy_, E_in, i, f);
+  int j;
+  int n = energy_out_.shape()[1];
+  if (!skewed_) {
+    // All bins equally likely
+    j = prn(seed) * n;
+  } else {
+    // Distribution skewed away from edge points
+    double r = prn(seed) * (n - 3);
+    if (r > 1.0) {
+      // equally likely N-4 middle bins
+      j = r + 1;
+    } else if (r > 0.6) {
+      // second to last bin has relative probability of 0.4
+      j = n - 2;
+    } else if (r > 0.5) {
+      // last bin has relative probability of 0.1
+      j = n - 1;
+    } else if (r > 0.1) {
+      // second bin has relative probability of 0.4
+      j = 1;
+    } else {
+      // first bin has relative probability of 0.1
+      j = 0;
+    }
+  }
+
+  // Determine outgoing energy corresponding to E_in[i] and E_in[i+1]
+  double E_ij = energy_out_(i, j);
+  double E_i1j = energy_out_(i + 1, j);
+
+  // Outgoing energy
+  E_out = (1 - f) * E_ij + f * E_i1j;
+  int m = mu_out_.shape()[2];
+  std::vector<double> mu_vector;
+   
+   for (int k = 0; k < m; ++k) {
+        double mu_ijk = mu_out_(i, j, k);
+        double mu_i1jk = mu_out_(i + 1, j, k);
+        double mu_k = (1 - f) * mu_ijk + f * mu_i1jk;
+        mu_vector.push_back(mu_k);
+    }
+
+ return get_pdf_discrete(mu_vector,mu,m);
+}
+
 
 //==============================================================================
 // IncoherentInelasticAE implementation
