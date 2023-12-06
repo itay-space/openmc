@@ -298,8 +298,11 @@ void ThermalData::sample(const NuclideMicroXS& micro_xs, double E,
   // Determine whether inelastic or elastic scattering will occur
   if (prn(seed) < micro_xs.thermal_elastic / micro_xs.thermal) {
     elastic_.distribution->sample(E, *E_out, *mu, seed);
+    handleAngleEnergy(elastic_.distribution.get());
   } else {
     inelastic_.distribution->sample(E, *E_out, *mu, seed);
+    handleAngleEnergy(inelastic_.distribution.get());
+
   }
 
   // Because of floating-point roundoff, it may be possible for mu to be
@@ -307,6 +310,30 @@ void ThermalData::sample(const NuclideMicroXS& micro_xs, double E,
   // -1 or 1
   if (std::abs(*mu) > 1.0)
     *mu = std::copysign(1.0, *mu);
+}
+
+void ThermalData::handleAngleEnergy(AngleEnergy* angleEnergyPtr) {
+     if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
+        // Handle CoherentElasticAE
+    } else if (IncoherentElasticAE* incoherentElasticAE = dynamic_cast<IncoherentElasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentElasticAE).name() << " implementation." << std::endl;
+        // Handle IncoherentElasticAE
+    } else if (IncoherentElasticAEDiscrete* incoherentElasticAEDiscrete = dynamic_cast<IncoherentElasticAEDiscrete*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentElasticAEDiscrete).name() << " implementation." << std::endl;
+        // Handle IncoherentElasticAEDiscrete
+    } else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation." << std::endl;
+        // Handle IncoherentInelasticAEDiscrete
+    } else if (IncoherentInelasticAE* incoherentInelasticAE = dynamic_cast<IncoherentInelasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentInelasticAE).name() << " implementation." << std::endl;
+        // Handle IncoherentInelasticAE
+    } else if (MixedElasticAE* mixedElasticAE = dynamic_cast<MixedElasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*mixedElasticAE).name() << " implementation." << std::endl;
+        // Handle MixedElasticAE
+    } else {
+        std::cout << "Unknown derived type." << std::endl;
+    }
 }
 
 void free_memory_thermal()
