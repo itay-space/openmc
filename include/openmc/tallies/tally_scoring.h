@@ -79,6 +79,7 @@ void score_point_tally_from_source(const SourceSite* src);
 double get_MFP(Particle ghost_particle , double total_distance);
 void get_pdf_to_point_elastic(double det_pos[3] ,Particle& p ,std::vector<double> &pdfs_cm,std::vector<double> &pdfs_lab ,std::vector<Particle>& ghost_particles);
 void get_mu_cm_inelastic(double det_pos[3] , double E_out,Particle &p);
+void score_ghost_particle(Particle& ghost_p , double pdf_lab);
 //
 void boostf( double A[4], double B[4], double X[4]);
 //! Analog tallies are triggered at every collision, not every event.
