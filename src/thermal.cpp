@@ -335,9 +335,9 @@ double ThermalData::get_pdf(const NuclideMicroXS& micro_xs, double E,
         // Handle IncoherentElasticAEDiscrete
     } else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
         //std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation (water for example)" << std::endl;
-        double pdf = (*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed);
+        pdf = (*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed);
       //std::cout << "mu " << mu << std::endl;
-      //std::cout << "pdf " << pdf << std::endl;
+      //std::cout << "pdf returning from secondary thermal " << pdf << std::endl;
       //std::cout << "E in " << E << std::endl;
       //std::cout << "E out " << E_out << std::endl;
       
@@ -353,6 +353,7 @@ double ThermalData::get_pdf(const NuclideMicroXS& micro_xs, double E,
     }
 
 
+ //std::cout << "pdf from function in thermal " << pdf << std::endl;
  return pdf;
 }
 

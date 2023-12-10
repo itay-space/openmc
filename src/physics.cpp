@@ -671,7 +671,7 @@ void scatter(Particle& p, int i_nuclide)
   // case, we need to sample a reaction via the cutoff variable
   double cutoff = prn(p.current_seed()) * (micro.total - micro.absorption);
   bool sampled = false;
-
+  
   // Calculate elastic cross section if it wasn't precalculated
   if (micro.elastic == CACHE_INVALID) {
     nuc->calculate_elastic_xs(p);
@@ -681,10 +681,10 @@ void scatter(Particle& p, int i_nuclide)
   if (prob > cutoff) {
     // =======================================================================
     // NON-S(A,B) ELASTIC SCATTERING
-
+    
     // Determine temperature
     double kT = nuc->multipole_ ? p.sqrtkT() * p.sqrtkT() : nuc->kTs_[i_temp];
-
+    
     // Perform collision physics for elastic scattering
     elastic_scatter(i_nuclide, *nuc->reactions_[0], kT, p);
 
@@ -696,7 +696,7 @@ void scatter(Particle& p, int i_nuclide)
   if (prob > cutoff && !sampled) {
     // =======================================================================
     // S(A,B) SCATTERING
-
+    
     sab_scatter(i_nuclide, micro.index_sab, p);
     p.event_index_mt() = -1234; // to distinguish from elastic
     p.event_mt() = ELASTIC;
@@ -706,7 +706,7 @@ void scatter(Particle& p, int i_nuclide)
   if (!sampled) {
     // =======================================================================
     // INELASTIC SCATTERING
-    
+  
     int n = nuc->index_inelastic_scatter_.size();
     int i = 0;
     for (int j = 0; j < n && prob < cutoff; ++j) {
@@ -836,6 +836,7 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
   Particle ghost_particle=Particle();
   //std::cout << "E out ghost " << E_out_ghost << std::endl;
   ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_out_ghost);
+  score_ghost_particle(ghost_particle , pdf);
 
   // Set energy to outgoing, change direction of particle
   p.E() = E_out;
