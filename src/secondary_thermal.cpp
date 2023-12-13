@@ -115,18 +115,18 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
    switch (mycase) {
    case 1:
    {
-          //  std::cout << "You chose option 1." << std::endl;
+         //  std::cout << "You chose option 1." << std::endl;
             // Calculate Delta_a and Delta_b
         double delta_a = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
         double delta_b = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
-
+        
             // Check conditions and calculate pdf
             if (mu_0 >= a_0 && mu_0 < a_0 + delta_a) {
                 pdf = 1.0 / (nu * 2.0 * delta_a);
-            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
+                            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
                 pdf = 1.0 / (nu * 2.0 * delta_b);
             } else if (mu_0 > a_0 + delta_a && mu_0 <= b_0 - delta_b) {
-                pdf = 0.0;
+                            pdf = 0.0;
             } else {
                 std::cout << "Invalid value of mu_0 for Case 1." << std::endl;
                 pdf = -1; // 
@@ -136,7 +136,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
    }
   case 2:
   {
-           // std::cout << "You chose option 2." << std::endl;
+            // std::cout << "You chose option 2." << std::endl;
                     // Calculate Delta_b for Case 2
             double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
 
@@ -175,7 +175,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
     }
     case 4:
     {
-          //  std::cout << "You chose option 4." << std::endl;
+           //  std::cout << "You chose option 4." << std::endl;
 // Calculate Delta_a and Delta_b for Case 4
     double delta_a_case4 = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
     double delta_b_case4 = 0.5 * std::min(1 - b_0, b_0 - a_0);
@@ -197,7 +197,7 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
     }
       case 5:
       {
-            //std::cout << "You chose option 5." << std::endl;
+           //std::cout << "You chose option 5." << std::endl;
             // Calculate Delta_a for Case 5
     double delta_a_case5 = 0.5 * std::min(1 - a_0, a_0 - a_1);
 
@@ -265,13 +265,23 @@ double CoherentElasticAE::get_pdf(
   double pdf;
   E_out = E_in;
   double E_k = E_in*(1-mu)/2;
-
+  
   const auto& energies {xs_.bragg_edges()};
+  if (E_in < energies.front())
+  {return 0;}
   const auto& factors = xs_.factors();
+  std::vector<double> mu_array;
 
-  Expects(E_in >= energies.front());
+    // Iterate over each element in energies
+    for (int k = 0; k < energies.size(); ++k) {
+        double mu = 1.0 - 2.0 * energies[k] / E_in;
+        mu_array.push_back(mu);
+    }
+   // Reverse mu_array (so it will be increasing)
+    std::reverse(mu_array.begin(), mu_array.end());
 
-  int k = lower_bound_index(energies.begin(), energies.end(), E_k);
+
+  int k = lower_bound_index(mu_array.begin(), mu_array.end(), mu);
   double D_k = factors[k];
 
 
@@ -280,13 +290,13 @@ double CoherentElasticAE::get_pdf(
   if (neighbors.leftCount > 0)
   {
     double D_kminus1 = neighbors.a_0;
-    pdf = (D_k - D_kminus1)/D_nu * get_pdf_discrete(factors,D_k,1);
+    pdf = (D_k - D_kminus1)/D_nu * get_pdf_discrete(mu_array,mu,1);
   }
-  if (neighbors.rightCount > 0)
+  else if (neighbors.rightCount > 0)
   {
     double D_kplus1 = neighbors.b_0;
-    pdf = (D_k - D_kplus1)/D_nu * get_pdf_discrete(factors,D_k,1);
-  }
+    pdf = (D_k - D_kplus1)/D_nu * get_pdf_discrete(mu_array,mu,1);
+     }
   return pdf;
 }
 
@@ -421,7 +431,7 @@ void IncoherentInelasticAEDiscrete::sample(
   int i;
   double f;
   get_energy_index(energy_, E_in, i, f);
-
+  
   // Now that we have an incoming energy bin, we need to determine the outgoing
   // energy bin. This will depend on whether the outgoing energy distribution is
   // skewed. If it is skewed, then the first two and last two bins have lower
@@ -521,7 +531,7 @@ double IncoherentInelasticAEDiscrete::get_pdf(
         double mu_k = (1 - f) * mu_ijk + f * mu_i1jk;
         mu_vector.push_back(mu_k);
     }
-
+ 
  return get_pdf_discrete(mu_vector,mu,m);
 }
 

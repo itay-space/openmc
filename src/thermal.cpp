@@ -2,7 +2,7 @@
 
 #include <algorithm> // for sort, move, min, max, find
 #include <cmath>     // for round, sqrt, abs
-
+#include <fstream>
 #include "xtensor/xarray.hpp"
 #include "xtensor/xbuilder.hpp"
 #include "xtensor/xmath.hpp"
@@ -325,7 +325,8 @@ double ThermalData::get_pdf(const NuclideMicroXS& micro_xs, double E,
   
 
   if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
-        std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
+      //  std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
+        pdf = (*coherentElasticAE).get_pdf(E, E_out, mu, seed);
         // Handle CoherentElasticAE
     } else if (IncoherentElasticAE* incoherentElasticAE = dynamic_cast<IncoherentElasticAE*>(angleEnergyPtr)) {
         std::cout << "Used " << typeid(*incoherentElasticAE).name() << " implementation." << std::endl;
@@ -334,13 +335,25 @@ double ThermalData::get_pdf(const NuclideMicroXS& micro_xs, double E,
         std::cout << "Used " << typeid(*incoherentElasticAEDiscrete).name() << " implementation." << std::endl;
         // Handle IncoherentElasticAEDiscrete
     } else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
-        //std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation (water for example)" << std::endl;
+      //std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation (water for example)" << std::endl;
         pdf = (*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed);
       //std::cout << "mu " << mu << std::endl;
       //std::cout << "pdf returning from secondary thermal " << pdf << std::endl;
       //std::cout << "E in " << E << std::endl;
-      //std::cout << "E out " << E_out << std::endl;
-      
+     //std::cout << "E out " << E_out << std::endl;
+    /*   if (E == 0.025){
+    std::ofstream outFile("/root/OpenMC/projects/openmc/paper/runs/thermal/runs/mwater_deg60_E0.025_rho1/pdf.txt");
+     for (double mu = -1.0; mu <= 1.0; mu += 0.0001) {
+        // Calculate PDF using get_pdf method
+        double pdf1 =(*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed);
+        // Save mu and pdf to the file
+        outFile << mu << "," << pdf1 << std::endl;
+    }
+
+outFile.close();
+       }
+       */
+           
         // Handle IncoherentInelasticAEDiscrete
     } else if (IncoherentInelasticAE* incoherentInelasticAE = dynamic_cast<IncoherentInelasticAE*>(angleEnergyPtr)) {
         std::cout << "Used " << typeid(*incoherentInelasticAE).name() << " implementation." << std::endl;
