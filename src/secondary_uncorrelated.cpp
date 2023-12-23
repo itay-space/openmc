@@ -133,7 +133,7 @@ void UncorrelatedAngleEnergy::get_pdf(
     ghost_particles.push_back(ghost_particle);
     pdfs_cm.push_back(pdf_cm1);
     double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
-    double pdf_mu1_lab = pdf_cm1 * deriv;
+    double pdf_mu1_lab = pdf_cm1 * std::abs(deriv);
     pdfs_lab.push_back(pdf_mu1_lab);
    }
    // std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
@@ -167,7 +167,7 @@ void UncorrelatedAngleEnergy::get_pdf(
       ghost_particles.push_back(ghost_particle);
       pdfs_cm.push_back(pdf_cm2);
       double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
-      double pdf_mu2_lab = pdf_cm2 * deriv;
+      double pdf_mu2_lab = pdf_cm2 * std::abs(deriv);
       pdfs_lab.push_back(pdf_mu2_lab);
      // std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
    //  std::cout << "E_lab2: " << E_lab2 << std::endl;

@@ -661,7 +661,7 @@ void scatter(Particle& p, int i_nuclide)
 {
   // copy incoming direction
   Direction u_old {p.u()};
-
+  p.event_index_mt() = 0;
   // Get pointer to nuclide and grid index/interpolation factor
   const auto& nuc {data::nuclides[i_nuclide]};
   const auto& micro {p.neutron_xs(i_nuclide)};
@@ -687,7 +687,7 @@ void scatter(Particle& p, int i_nuclide)
     
     // Perform collision physics for elastic scattering
     elastic_scatter(i_nuclide, *nuc->reactions_[0], kT, p);
-
+   
     p.event_mt() = ELASTIC;
     sampled = true;
   }

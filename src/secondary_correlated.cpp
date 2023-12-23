@@ -420,7 +420,7 @@ double mu_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3
     ghost_particles.push_back(ghost_particle);
     pdfs_cm.push_back(pdf_mu1_cm);
     double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
-    double pdf_mu1_lab = pdf_mu1_cm * deriv;
+    double pdf_mu1_lab = pdf_mu1_cm * std::abs(deriv);
     pdfs_lab.push_back(pdf_mu1_lab);
     std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
 
@@ -456,7 +456,7 @@ double mu_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3
       ghost_particles.push_back(ghost_particle);
       pdfs_cm.push_back(pdf_mu2_cm);
       double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
-      double pdf_mu2_lab = pdf_mu2_cm * deriv;
+      double pdf_mu2_lab = pdf_mu2_cm * std::abs(deriv);
       pdfs_lab.push_back(pdf_mu2_lab);
       std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
     //  std::cout << "E_lab2: " << E_lab2 << std::endl;
