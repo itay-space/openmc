@@ -267,37 +267,34 @@ double CoherentElasticAE::get_pdf(
   double E_k = E_in*(1-mu)/2;
   
   const auto& energies {xs_.bragg_edges()};
+  const auto& factors = xs_.factors();
   if (E_in < energies.front())
   {return 0;}
-  const auto& factors = xs_.factors();
-  std::vector<double> mu_array;
+  // Calculate normalized CDF
+    std::vector<double> normalized_cdf_E(factors.size());
+    std::transform(factors.begin(), factors.end(), normalized_cdf_E.begin(),
+                   [last_factor = factors.back()](double factor) {
+                       return factor / last_factor;
+                   });
 
-    // Iterate over each element in energies
-    for (int k = 0; k < energies.size(); ++k) {
-        double mu = 1.0 - 2.0 * energies[k] / E_in;
-        mu_array.push_back(mu);
+  // Calculate the derivative using finite differences
+   std::vector<double> pdf_E;
+
+    for (size_t i = 1; i < energies.size(); ++i) {
+        double energyDifference = energies[i] - energies[i - 1];
+        double cdfDifference = normalized_cdf_E[i] - normalized_cdf_E[i - 1];
+        double derivativeValue = cdfDifference / energyDifference;
+
+        pdf_E.push_back(derivativeValue);
     }
-   // Reverse mu_array (so it will be increasing)
-    std::reverse(mu_array.begin(), mu_array.end());
 
+  int i;
+  double f;
+  get_energy_index(energies , E_k ,i,f);
 
-  int k = lower_bound_index(mu_array.begin(), mu_array.end(), mu);
-  double D_k = factors[k];
-
-
-  Neighbors neighbors = findNearestNeighbors(factors, D_k);
-  double D_nu = factors.back();
-  if (neighbors.leftCount > 0)
-  {
-    double D_kminus1 = neighbors.a_0;
-    pdf = (D_k - D_kminus1)/D_nu * get_pdf_discrete(mu_array,mu,1);
-  }
-  else if (neighbors.rightCount > 0)
-  {
-    double D_kplus1 = neighbors.b_0;
-    pdf = (D_k - D_kplus1)/D_nu * get_pdf_discrete(mu_array,mu,1);
-     }
-  return pdf;
+            
+  return pdf_E[i]*E_in/2;
+  
 }
 
 //==============================================================================
@@ -484,7 +481,7 @@ void IncoherentInelasticAEDiscrete::sample(
   mu = (1 - f) * mu_ijk + f * mu_i1jk;
 }
 double IncoherentInelasticAEDiscrete::get_pdf(
-  double E_in, double& E_out, double& mu, uint64_t* seed) const
+  double E_in, double& E_out, double& mu, uint64_t* seed,int l) const
 {
   // Get index and interpolation factor for inelastic grid
   int i;
@@ -515,7 +512,7 @@ double IncoherentInelasticAEDiscrete::get_pdf(
       j = 0;
     }
   }
-
+  if (l != -1){ j = l;} // take j as param
   // Determine outgoing energy corresponding to E_in[i] and E_in[i+1]
   double E_ij = energy_out_(i, j);
   double E_i1j = energy_out_(i + 1, j);
