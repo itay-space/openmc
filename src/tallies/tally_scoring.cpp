@@ -2546,7 +2546,7 @@ void score_point_tally(Particle& p)
 
    if (p.event_mt() == 2 && p.event_index_mt() != -1234)
    {
-   get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,-1);
+   get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles);
    for (std::size_t i = 0; i < mu_cm.size(); ++i) {
         // Assuming Js.size() is the same as mu_cm.size()
         double mu_c = mu_cm[i];
@@ -2772,7 +2772,7 @@ double get_MFP(Particle ghost_particle , double total_distance)
 
 
 
-void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles  , double E3_cm)
+void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles)
 {
    Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
@@ -2829,13 +2829,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   //auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
   
 
-  if (E3_cm!=-1) //E3_cm (KE!) already sampled in inelastic
-  {
-    E3_cm = E3_cm + m3; //total E
-    double E4_cm = M_cm - E3_cm;
-    double p4_cm = std::sqrt(E3_cm*E3_cm - m3*m3); // |p4_cm| = |p3_cm|
-    m4 = std::sqrt(E4_cm*E4_cm - p4_cm*p4_cm);
-  }
+
 
 
   if ( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
@@ -2845,12 +2839,16 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     p3_tot_1 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab + 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
     p3_1 = u_lab_unit*p3_tot_1;
     double E3_tot_1 = std::sqrt(p3_tot_1*p3_tot_1 + m3*m3);
+   // std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
     E3k_1 = (E3_tot_1 - m3) *1e6; // back to eV
     double B1[4] = {E3_tot_1 , p3_1.x,p3_1.y,p3_1.z};
     boostf( A, B1 , Fp3cm_1);  
     
     double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
+    
+    
     double E3cm_1 = std::sqrt(p3cm_tot_1*p3cm_tot_1 + m3*m3);
+    //std::cout << "E3cm_1 "<<E3cm_1 <<std::endl;
     double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);// good until here
     if (std::abs(mucm_1) > 1.0)
    { mucm_1 =std::copysign(1.0, mucm_1);}
@@ -2873,7 +2871,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     Js.push_back(derivative1);
     //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
     //double pdf1lab = pdf1cm/std::abs(derivative1);
-    
+ 
     //std::cout << "cos_lab  "<< cos_lab <<std::endl;
     //std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
     //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
@@ -2890,11 +2888,13 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
       p3_2 = u_lab_unit*p3_tot_2;
       double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
+      std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
       E3k_2 = (E3_tot_2 -m3 )*1e6; 
       double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
       boostf( A, B2 , Fp3cm_2);
       double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
       double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
+      std::cout << "E3cm_2 "<<E3cm_2 <<std::endl;
       double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
       if (std::abs(mucm_2) > 1)
       {mucm_2 =std::copysign(1.0, mucm_2);}
@@ -2926,6 +2926,139 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   }
 
 
+}
+void get_pdf_to_point_inelastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles  , double E3_cm)
+{
+  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+                   det_pos[1]-p.r().y,
+                   det_pos[2]-p.r().z};
+  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
+  
+  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
+  const auto& nuc {data::nuclides[p.event_nuclide()]};
+  double awr = nuc->awr_;
+  double m2= m1*awr; // mass of target 
+  double m3= m1; // mass of outgoing particle to detector 
+  double m4= m2; // mass of recoil target  system
+  
+  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
+  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
+  //if (p1_tot == 0) {return; std::cout << "p1_tot was zero "<<std::endl;} // without this the get_pdf function turns p.r() into nan
+  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
+  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab
+  // std::cout<< "target_velocity" << p.v_t().x <<" " << p.v_t().y << " " << p.v_t().z << " " << std::endl; 
+  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2);
+  double E_cm = E1_tot + E2_tot;
+  Direction p_cm = p1 + p2;
+  double p_tot_cm = p_cm.norm();
+  
+  double cos_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3 
+  if (std::abs(cos_lab) > 1.0)
+   { cos_lab= std::copysign(1.0, cos_lab);}
+
+
+  double theta = std::acos(cos_lab);
+  double sin_lab_sq = 1 - cos_lab*cos_lab;
+
+  double M_cm = std::sqrt(E_cm*E_cm - p_tot_cm*p_tot_cm); // mass of the center of mass (incoming and target)
+  double gamma = E_cm/M_cm;
+  double p1_cm[4];
+  double A[4] = {E_cm, p_cm.x , p_cm.y , p_cm.z};
+ // double invA[4] = {E_cm, -p_cm.x , -p_cm.y , -p_cm.z};
+ //boostf( invA ,p1_cm,  maybe_p1_lab); boost back to lab
+  double B[4] = {E1_tot , p1.x,p1.y,p1.z};
+  boostf( A, B , p1_cm);
+  double p1_tot_cm = std::sqrt(p1_cm[1]*p1_cm[1]+p1_cm[2]*p1_cm[2]+p1_cm[3]*p1_cm[3]);
+    
+    E3_cm = E3_cm + m3; //total E
+    double beta = (p_tot_cm / E_cm);
+    if (E3_cm * E3_cm + beta * beta * gamma * gamma * m3 * m3 * cos_lab * cos_lab - gamma * gamma * m3 * m3 < 0)
+    {
+      return;
+    }
+    double numerator1 = -E3_cm + beta * std::sqrt(E3_cm * E3_cm + beta * beta * gamma * gamma * m3 * m3 * cos_lab * cos_lab - gamma * gamma * m3 * m3) * cos_lab;
+    double numerator2 = -E3_cm - beta * std::sqrt(E3_cm * E3_cm + beta * beta * gamma * gamma * m3 * m3 * cos_lab * cos_lab - gamma * gamma * m3 * m3) * cos_lab;
+    double denominator = gamma * (beta * beta * cos_lab * cos_lab - 1);
+    double E3_lab1 = numerator1 / denominator;
+    double E3_lab2 = numerator2 / denominator;
+    Direction p3_lab1 = u_lab_unit*std::sqrt(E3_lab1*E3_lab1 - m3*m3);
+    Direction p3_lab2 = u_lab_unit*std::sqrt(E3_lab2*E3_lab2 - m3*m3);
+    double B1[4] = {E3_lab1 , p3_lab1.x,p3_lab1.y,p3_lab1.z};
+    double B2[4] = {E3_lab2 , p3_lab2.x,p3_lab2.y,p3_lab2.z};
+    double Fp3cm_1[4];
+    double Fp3cm_2[4];
+    boostf( A, B1 , Fp3cm_1); 
+    boostf( A, B2 , Fp3cm_2); 
+    double p3cm_tot = std::sqrt(E3_cm*E3_cm - m3*m3);
+
+
+   if (std::abs(Fp3cm_1[0] - E3_cm) < 0.0001 )
+   {
+    Particle ghost_particle=Particle();
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,(E3_lab1-m3)*1e6);
+    ghost_particles.push_back(ghost_particle);
+    double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot);// good until here
+    if (std::abs(mucm_1) > 1.0)
+   { mucm_1 =std::copysign(1.0, mucm_1);}
+    //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed()); 
+    //pdfs_cm.push_back(pdf1cm);
+    mu_cm.push_back(mucm_1);
+
+    double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot);
+    double q1 = (p_tot_cm / E_cm) * (E3_cm / p3cm_tot);
+    
+    if (std::abs(mucm03_1) > 1.0)
+   { mucm03_1 =std::copysign(1.0, mucm03_1);}
+    double sincm1 = std::sqrt(1-mucm03_1*mucm03_1); // if this is zero derivative is inf so pdf is 0
+    double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
+    double derivative1 =  gamma*(1+q1*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
+    if (sincm1==0 && sin_lab_sq == 0)
+      {
+          derivative1 =  ( (cos_lab) / (gamma*mucm03_1*(1+q1*mucm03_1)) ) * ( (cos_lab) / (gamma*mucm03_1*(1+q1*mucm03_1)) ) ;
+      }
+    Js.push_back(derivative1);
+   }
+   if (std::abs(Fp3cm_2[0] - E3_cm) < 0.0001 )
+   {
+    Particle ghost_particle=Particle();
+    ghost_particle.initilze_ghost_particle(p,u_lab_unit,(E3_lab2-m3)*1e6);
+    ghost_particles.push_back(ghost_particle);
+    double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot);// good until here
+    if (std::abs(mucm_2) > 1.0)
+   { mucm_2 =std::copysign(1.0, mucm_2);}
+    //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed()); 
+    //pdfs_cm.push_back(pdf1cm);
+    mu_cm.push_back(mucm_2);
+
+    double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot);
+    double q2 = (p_tot_cm / E_cm) * (E3_cm / p3cm_tot);
+    
+    if (std::abs(mucm03_2) > 1.0)
+   { mucm03_2 =std::copysign(1.0, mucm03_2);}
+    double sincm2 = std::sqrt(1-mucm03_2*mucm03_2); // if this is zero derivative is inf so pdf is 0
+    double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2 ;
+    double derivative2 =  gamma*(1+q2*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
+    if (sincm2==0 && sin_lab_sq == 0)
+      {
+          derivative2 =  ( (cos_lab) / (gamma*mucm03_2*(1+q2*mucm03_2)) ) * ( (cos_lab) / (gamma*mucm03_2*(1+q2*mucm03_2)) ) ;
+      }
+    Js.push_back(derivative2);
+   }
+
+
+
+
+
+    //std::cout << "Fp3cm_1[0] "<<Fp3cm_1[0] <<std::endl;
+   // std::cout << "Fp3cm_2[0] "<<Fp3cm_2[0] <<std::endl;
+    //std::cout << "E3_cm "<<E3_cm <<std::endl;
+    //std::cout << "E3_lab1 "<<E3_lab1 <<std::endl;
+    //std::cout << "E3_lab2 "<<E3_lab2 <<std::endl;
+    //double E4_cm = M_cm - E3_cm;
+    //double p4_cm = std::sqrt(E3_cm*E3_cm - m3*m3); // |p4_cm| = |p3_cm|
+    //m4 = std::sqrt(E4_cm*E4_cm - p4_cm*p4_cm);
+    //std::cout << "myE3_cm "<<E3_cm <<std::endl;
+  
 }
 
 void score_ghost_particle(Particle& ghost_p , double pdf_lab)

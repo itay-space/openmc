@@ -112,8 +112,8 @@ void NBodyPhaseSpace::get_pdf(
   // Now determine v and E_out
   double v = x / (x + y);
   E_out = E_max * v;
-
-  get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
+//std::cout << "E_out_cm in nbody calling elastic" << E_out << std::endl;
+  get_pdf_to_point_inelastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
    for (std::size_t i = 0; i < mu_cm.size(); ++i) {
         // Assuming Js.size() is the same as mu_cm.size()
         double mu_c = mu_cm[i];
