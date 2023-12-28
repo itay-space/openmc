@@ -108,9 +108,8 @@ void ReactionProduct::sample(
     
   }
 }
-
 void ReactionProduct::get_pdf(
-  double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+  double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
  
   double det_pos[3] = {0,0,0};
@@ -144,41 +143,23 @@ AngleEnergy* angleEnergyPtr = distribution_[distribution_index].get();
 
 if (CorrelatedAngleEnergy* correlatedAE = dynamic_cast<CorrelatedAngleEnergy*>(angleEnergyPtr)) {
    // std::cout << "Used " << typeid(*correlatedAE).name() << " implementation." << std::endl;
-    (*correlatedAE).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    (*correlatedAE).get_pdf(det_pos,E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
     // Handle CorrelatedAngleEnergy
 } else if (KalbachMann* kalbachMann = dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
     //std::cout << "Used " << typeid(*kalbachMann).name() << " implementation." << std::endl;
-    (*kalbachMann).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    (*kalbachMann).get_pdf(det_pos,E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
    
    // std::cout << " my E_in " << E_in <<std::endl;
    // std::cout << " my E out " << E_out <<std::endl;
     // Handle KalbachMann
 } else if (NBodyPhaseSpace* nBodyPS = dynamic_cast<NBodyPhaseSpace*>(angleEnergyPtr)) {
     //std::cout << "Used " << typeid(*nBodyPS).name() << " implementation." << std::endl;
-    (*nBodyPS).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    (*nBodyPS).get_pdf(det_pos,E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
     // Handle NBodyPhaseSpace
 } else if (UncorrelatedAngleEnergy* uncorrelatedAE = dynamic_cast<UncorrelatedAngleEnergy*>(angleEnergyPtr)) {
     //std::cout << "Used " << typeid(*uncorrelatedAE).name() << " implementation." << std::endl;
-    (*uncorrelatedAE).get_pdf(det_pos,E_in,E_out,seed ,p,pdfs_cm ,pdfs_lab ,ghost_particles);
+    (*uncorrelatedAE).get_pdf(det_pos,E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
     // Handle UncorrelatedAngleEnergy
-} else if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
-    // Handle CoherentElasticAE
-} else if (IncoherentElasticAE* incoherentElasticAE = dynamic_cast<IncoherentElasticAE*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*incoherentElasticAE).name() << " implementation." << std::endl;
-    // Handle IncoherentElasticAE
-} else if (IncoherentElasticAEDiscrete* incoherentElasticAEDiscrete = dynamic_cast<IncoherentElasticAEDiscrete*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*incoherentElasticAEDiscrete).name() << " implementation." << std::endl;
-    // Handle IncoherentElasticAEDiscrete
-} else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation." << std::endl;
-    // Handle IncoherentInelasticAEDiscrete
-} else if (IncoherentInelasticAE* incoherentInelasticAE = dynamic_cast<IncoherentInelasticAE*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*incoherentInelasticAE).name() << " implementation." << std::endl;
-    // Handle IncoherentInelasticAE
-} else if (MixedElasticAE* mixedElasticAE = dynamic_cast<MixedElasticAE*>(angleEnergyPtr)) {
-    std::cout << "Used " << typeid(*mixedElasticAE).name() << " implementation." << std::endl;
-    // Handle MixedElasticAE
 } else {
     std::cout << "Unknown derived type." << std::endl;
 }

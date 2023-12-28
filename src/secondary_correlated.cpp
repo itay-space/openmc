@@ -14,6 +14,7 @@
 #include "openmc/search.h"
 #include "openmc/particle.h"
 #include "openmc/nuclide.h"
+#include "openmc/tallies/tally_scoring.h"
 
 namespace openmc {
 
@@ -266,7 +267,7 @@ void CorrelatedAngleEnergy::sample(
 }
 
 void CorrelatedAngleEnergy::get_pdf(
-  double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+  double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins
@@ -366,127 +367,43 @@ void CorrelatedAngleEnergy::get_pdf(
     }
   }
  
-
 const auto& nuc {data::nuclides[p.event_nuclide()]};
 const auto& rx {nuc->reactions_[p.event_index_mt()]};
-double A = nuc->awr_;
- Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
-                   det_pos[1]-p.r().y,
-                   det_pos[2]-p.r().z};
-Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-double m1= p.getMass()/1e6; // mass of incoming particle in MeV
-double m2= m1*A; // mass of target 
-double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
-Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
-Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab 
-double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2); // 
-double E_cm = E1_tot + E2_tot;
-Direction p_cm = p1 + p2;
-double p_tot_cm = p_cm.norm();
-double mu_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3
-
  if (rx->scatter_in_cm_) {
-   // std::cout << "E_out_cm in nbody" << E_out << std::endl;
-    double cond =E_out * (A+1)*(A+1) + E_in * (mu_lab*mu_lab - 1);
-    
-   
-  //if (cond<0) {std::cout << "cond < 0" << std::endl;}
-   
-   if ( cond >= 0)
-   {
-    double  E_lab1 = (E_out * (A+1)*(A+1) - 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
-    double  mu_cm1 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab1))*std::sqrt(E_lab1/E_out);
-    double pdf_mu1_cm =-1; // center of mass
-    // Find correlated angular distribution for closest outgoing energy bin
-  if (r1 - c_k < c_k1 - r1 ||
-      distribution_[l].interpolation == Interpolation::histogram) {
-    pdf_mu1_cm = distribution_[l].angle[k]->get_pdf(mu_cm1);
-  } else {
-    pdf_mu1_cm = distribution_[l].angle[k + 1]->get_pdf(mu_cm1);
-  }
-    
-    double E_lab1_maybe = E_out + (E_in + 2.0 * mu_cm1 * (A + 1.0) * std::sqrt(E_in * E_out)) /((A + 1.0) * (A + 1.0));
-     // std::cout << "E_lab1 maybe? " << E_lab1_maybe  << std::endl;
-
-      double E1_lab_diff = std::abs(E_lab1 - E_lab1_maybe);
-     // std::cout << "E_lab1 diff " << E1_lab_diff << std::endl;
-
- if (E1_lab_diff<0.01)
-   {
-    
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab1);
-    ghost_particles.push_back(ghost_particle);
-    pdfs_cm.push_back(pdf_mu1_cm);
-    double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
-    double pdf_mu1_lab = pdf_mu1_cm * std::abs(deriv);
-    pdfs_lab.push_back(pdf_mu1_lab);
-    std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
-
-   }
-    
-  // std::cout << "E_lab1: " << E_lab1 << std::endl;
-   // std::cout << "mu_cm1: " << mu_cm1 << std::endl;
-    std::cout << "pdf_mu1_cm: " << pdf_mu1_cm << std::endl;
-
-    if (cond > 0)
-    {
-      double  E_lab2 = (E_out * (A+1)*(A+1) + 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
-      double  mu_cm2 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab2))*std::sqrt(E_lab2/E_out);
-      double pdf_mu2_cm = -1; // center of mass
-      if (r1 - c_k < c_k1 - r1 ||
-      distribution_[l].interpolation == Interpolation::histogram) {
-    pdf_mu2_cm = distribution_[l].angle[k]->get_pdf(mu_cm2);
-  } else {
-    pdf_mu2_cm = distribution_[l].angle[k + 1]->get_pdf(mu_cm2);
-  }
-
-    double E_lab2_maybe = E_out + (E_in + 2.0 * mu_cm2 * (A + 1.0) * std::sqrt(E_in * E_out)) /((A + 1.0) * (A + 1.0));
-     // std::cout << "E_lab2 maybe? " << E_lab2_maybe  << std::endl;
-
-      double E2_lab_diff = std::abs(E_lab2 - E_lab2_maybe);
-     // std::cout << "E_lab2 diff " << E2_lab_diff << std::endl;
-
- if (E2_lab_diff<0.01)
-   {
-
-      Particle ghost_particle=Particle();
-      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab2);
-      ghost_particles.push_back(ghost_particle);
-      pdfs_cm.push_back(pdf_mu2_cm);
-      double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
-      double pdf_mu2_lab = pdf_mu2_cm * std::abs(deriv);
-      pdfs_lab.push_back(pdf_mu2_lab);
-      std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
-    //  std::cout << "E_lab2: " << E_lab2 << std::endl;
-   // std::cout << "mu_cm2: " << mu_cm2 << std::endl;
-    std::cout << "pdf_mu2_cm: " << pdf_mu2_cm << std::endl;
-   }
-
+   get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
+   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
+        // Assuming Js.size() is the same as mu_cm.size()
+        double mu_c = mu_cm[i];
+        double derivative = Js[i];
+        double pdf_cm;
+        if (r1 - c_k < c_k1 - r1 ||
+         distribution_[l].interpolation == Interpolation::histogram) {
+       pdf_cm = distribution_[l].angle[k]->get_pdf(mu_c);
+        } else {
+      pdf_cm = distribution_[l].angle[k + 1]->get_pdf(mu_c);
     }
-
-   }
-    //std::cout << "E_out_lab in nbody" << E_lab << std::endl;         
-
-
+        pdfs_lab.push_back(pdf_cm/std::abs(derivative));
+    }
 
    }
 
    if (!rx->scatter_in_cm_)
    {
+    //fatal_error("Didnt implemt lab");
+    Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
+                   det_pos[1]-p.r().y,
+                   det_pos[2]-p.r().z};
+  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
     double E_lab = E_out;
   Particle ghost_particle=Particle();
   ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab);
   ghost_particles.push_back(ghost_particle);
-  pdfs_cm.push_back(-999);
   double pdf_mu_lab;
-
   if (r1 - c_k < c_k1 - r1 ||
       distribution_[l].interpolation == Interpolation::histogram) {
-    pdf_mu_lab = distribution_[l].angle[k]->get_pdf(mu_lab);
+    pdf_mu_lab = distribution_[l].angle[k]->get_pdf(u_lab_unit.dot(p.u_last()));
   } else {
-    pdf_mu_lab = distribution_[l].angle[k + 1]->get_pdf(mu_lab);
+    pdf_mu_lab = distribution_[l].angle[k + 1]->get_pdf(u_lab_unit.dot(p.u_last()));
   }
   
   pdfs_lab.push_back(pdf_mu_lab);

@@ -15,6 +15,7 @@
 #include "openmc/vector.h"
 #include "openmc/particle.h"
 #include "openmc/nuclide.h"
+#include "openmc/tallies/tally_scoring.h"
 
 namespace openmc {
 
@@ -239,50 +240,26 @@ void KalbachMann::sample(
     mu = std::log(r1 * std::exp(km_a) + (1.0 - r1) * std::exp(-km_a)) / km_a;
   }
 }
-void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out, uint64_t* seed, Particle &p ,std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles) const
+void KalbachMann::get_pdf(
+ double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins
-  //double mu_lab = mymu; // get lab value from tally scoring
-
-  
-  double myE_in = E_in;
-
   const auto& nuc {data::nuclides[p.event_nuclide()]};
-  double A = nuc->awr_;
-  Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
-                   det_pos[1]-p.r().y,
-                   det_pos[2]-p.r().z};
-  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
-  double m2= m1*A; // mass of target 
-  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
-  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
-  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab 
-  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2); // 
-  double E_cm = E1_tot + E2_tot;
-  Direction p_cm = p1 + p2;
-  double p_tot_cm = p_cm.norm();
-  double mu_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3
-
-
-
-
 
   //double E_out;
   auto n_energy_in = energy_.size();
   int i;
   double r;
-  if (myE_in < energy_[0]) {
+  if (E_in < energy_[0]) {
     i = 0;
     r = 0.0;
-  } else if (myE_in > energy_[n_energy_in - 1]) {
+  } else if (E_in > energy_[n_energy_in - 1]) {
     i = n_energy_in - 2;
     r = 1.0;
   } else {
-    i = lower_bound_index(energy_.begin(), energy_.end(), myE_in);
-    r = (myE_in - energy_[i]) / (energy_[i + 1] - energy_[i]);
+    i = lower_bound_index(energy_.begin(), energy_.end(), E_in);
+    r = (E_in - energy_[i]) / (energy_[i + 1] - energy_[i]);
   }
 
   // Sample between the ith and [i+1]th bin
@@ -381,76 +358,22 @@ void KalbachMann::get_pdf(double det_pos[3] , double E_in,double& E_out, uint64_
       E_out = E_1 + (E_out - E_i1_1) * (E_K - E_1) / (E_i1_K - E_i1_1);
     }
   }
-  //std::cout << " my E out in KM  " << E_out <<std::endl;
-  double cond =E_out * (A+1)*(A+1) + E_in * (mu_lab*mu_lab - 1);
-   if ( cond >= 0)
-   {
-    double  E_lab1 = (E_out * (A+1)*(A+1) - 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
-    double  mu_cm1 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab1))*std::sqrt(E_lab1/E_out);
-     double pdf_mu1_cm = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mu_cm1) + km_r * std::sinh(km_a * mu_cm1)); // center of mass
-     /*
-     std::cout << "cond " << cond<< ","<<std::endl;
-     std::cout << "ch " << - 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1) << ","<<std::endl;
-     std::cout << "A: " << A<< ","<<std::endl;
-     std::cout << "E_cm_out: " << E_out<< "," << std::endl;
-      std::cout << "mu_lab: " << mu_lab<< "," << std::endl;
-      std::cout << "E: " << E_in << std::endl;
-      */
-   //std::cout << "E_lab1: " << E_lab1 << std::endl;
-   //std::cout << "mu_cm1: " << mu_cm1 << std::endl;
-   
 
-   //std::cout << "mu_cm1 recons: " << mu_cm1 << std::endl;
-     double E_lab1_maybe = E_out + (E_in + 2.0 * mu_cm1 * (A + 1.0) * std::sqrt(E_in * E_out)) /((A + 1.0) * (A + 1.0));
-    // std::cout << "E_lab1 maybe? " << E_lab1_maybe  << std::endl;
-   double E1_lab_diff = std::abs(E_lab1 - E_lab1_maybe);
-     // std::cout << "E_lab1 diff " << E1_lab_diff << std::endl;
-
-   // std::cout << "pdf_mu1_cm: " << pdf_mu1_cm << std::endl;
-   if (E1_lab_diff<0.01)
-   {
-
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab1);
-    ghost_particles.push_back(ghost_particle);
-    pdfs_cm.push_back(pdf_mu1_cm);
-    double deriv = sqrt(E_lab1 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab1));
-    double pdf_mu1_lab = pdf_mu1_cm * std::abs(deriv);
-    pdfs_lab.push_back(pdf_mu1_lab);
-   // std::cout << "pdf_mu1_lab " << pdf_mu1_lab << std::endl;
-   }
-
-    if (cond > 0)
-    {
-      double  E_lab2 = (E_out * (A+1)*(A+1) + 2 * std::sqrt(E_in) * mu_lab * std::sqrt(cond) + E_in * (2 * mu_lab*mu_lab - 1)) / ((A+1)*(A+1));
-      double  mu_cm2 =  (mu_lab - 1/(A+1) * std::sqrt(E_in/E_lab2))*std::sqrt(E_lab2/E_out);
-      double pdf_mu2_cm = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mu_cm2) + km_r * std::sinh(km_a * mu_cm2)); // center of mass
-      //std::cout << "E_lab2: " << E_lab2 << std::endl;
-     // std::cout << "mu_cm2: " << mu_cm2 << std::endl;
-   // std::cout << "pdf_mu2_cm: " << pdf_mu2_cm << std::endl;
-     double E_lab2_maybe = E_out + (E_in + 2.0 * mu_cm2 * (A + 1.0) * std::sqrt(E_in * E_out)) /((A + 1.0) * (A + 1.0));
-     // std::cout << "E_lab2 maybe? " << E_lab2_maybe  << std::endl;
-
-      double E2_lab_diff = std::abs(E_lab2 - E_lab2_maybe);
-     // std::cout << "E_lab2 diff " << E2_lab_diff << std::endl;
-
- if (E2_lab_diff<0.01)
-   {
-
-      Particle ghost_particle=Particle();
-      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_lab2);
-      ghost_particles.push_back(ghost_particle);
-      pdfs_cm.push_back(pdf_mu2_cm);
-      double deriv = sqrt(E_lab2 / E_out) /(1 - mu_lab / (A + 1) * sqrt(E_in /E_lab2));
-      double pdf_mu2_lab = pdf_mu2_cm * std::abs(deriv);
-      pdfs_lab.push_back(pdf_mu2_lab);
-     // std::cout << "pdf_mu2_lab " << pdf_mu2_lab << std::endl;
-   }
-    
+  get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
+  //std::cout << " sent to pdf_elastic from kalbach, E3_out_cm  " << E_out/1e6 <<std::endl;
+  //std::cout << " mu_cm" << mu_cm[0] <<std::endl;
+  //std::cout << "ghost_particles[0].E() " << ghost_particles[0].E() <<std::endl;
+   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
+        // Assuming Js.size() is the same as mu_cm.size()
+        double mu_c = mu_cm[i];
+        double derivative = Js[i];
+        double pdf_cm = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mu_c) + km_r * std::sinh(km_a * mu_c)); // center of mass
+        pdfs_lab.push_back(pdf_cm/std::abs(derivative));
     }
-
-   }
-// https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
+  
+  //std::cout << " my E out in KM  " << E_out <<std::endl;
+  
+  // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
    //double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu)); // center of mass
    //return pdf_mu;
 

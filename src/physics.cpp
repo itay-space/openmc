@@ -1180,7 +1180,7 @@ void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, 
     pdfs_lab.clear();
     ghost_particles.clear();
     
-    rx.products_[site->delayed_group].get_pdf(E_in, site->E, seed,p ,pdfs_cm ,pdfs_lab, ghost_particles);
+   // rx.products_[site->delayed_group].get_pdf(E_in, E_out, p.current_seed(),p ,mu_cm ,Js, ghost_particles,pdfs_lab);
 
     // resample if energy is greater than maximum neutron energy
     constexpr int neutron = static_cast<int>(ParticleType::neutron);
