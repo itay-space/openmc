@@ -197,7 +197,8 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
   int n_sites_stored;
   // Initialize for point detector
   std::vector<Particle> ghost_particles; 
-  std::vector<double> pdfs_cm;
+  std::vector<double> mu_cm;
+  std::vector<double> Js;
   std::vector<double> pdfs_lab;
 
   for (n_sites_stored = 0; n_sites_stored < nu; n_sites_stored++) {
@@ -214,7 +215,7 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
     // Sample delayed group and angle/energy for fission reaction
     sample_fission_neutron(i_nuclide, rx, &site, p);
     p.event_index_mt() = -999; 
-    score_fission_neutron(i_nuclide, rx, &site, p,pdfs_cm ,pdfs_lab, ghost_particles);
+    score_fission_neutron(i_nuclide, rx, &site, p,mu_cm ,Js,ghost_particles,pdfs_lab);
 
     // Store fission site in bank
     if (use_fission_bank) {
@@ -1123,7 +1124,7 @@ void sample_fission_neutron(
   site->u = rotate_angle(p.u(), mu, nullptr, seed);
 }
 
-void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &pdfs_cm , std::vector<double> &pdfs_lab ,std::vector<Particle> &ghost_particles)
+void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &mu_cm,std::vector<double> &Js  ,std::vector<Particle> &ghost_particles, std::vector<double> &pdfs_lab)
 {
    
 
@@ -1176,15 +1177,16 @@ void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, 
   double mu;
   while (true) {
     // erase previous elemts bc they were rejected.
-    pdfs_cm.clear();
+    mu_cm.clear();
+    Js.clear();
     pdfs_lab.clear();
     ghost_particles.clear();
-    
-   // rx.products_[site->delayed_group].get_pdf(E_in, E_out, p.current_seed(),p ,mu_cm ,Js, ghost_particles,pdfs_lab);
+    double E_out;
+    rx.products_[site->delayed_group].get_pdf(E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
 
     // resample if energy is greater than maximum neutron energy
     constexpr int neutron = static_cast<int>(ParticleType::neutron);
-    if (site->E < data::energy_max[neutron])
+    if (E_out < data::energy_max[neutron])
       break;
 
     // check for large number of resamples
@@ -1197,84 +1199,15 @@ void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, 
     }
   }
    // starting scoring loop on ghost particles
-double det_pos[3] = {0,0,0};
-get_det_pos(det_pos);
-Direction u_lab {det_pos[0]-p.r().x, det_pos[1]-p.r().y,det_pos[2]-p.r().z};
-double total_distance = u_lab.norm();
+
+
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
+          score_ghost_particle(ghost_p , pdf_lab);
       //    std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
        //   std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
-          double total_MFP1 = get_MFP(ghost_p,total_distance);
-
-          
- // be careful of fission yield
-          double myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
-      //    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
-   // std::cout << "exp(-total_MFP1): " << exp(-total_MFP1) << std::endl;
-   // std::cout << "(2 * PI * total_distance * total_distance): " << (2 * PI * total_distance * total_distance) << std::endl;
-   // std::cout << "pdf_lab: " << pdf_lab << std::endl;
-          //fluxes.push_back(flux1);
-          //if (std::isnan(flux)) {flux=0;}
-         // std::cout << "myflux" << myflux <<std::endl;
-          if ((p.type() != ParticleType::neutron) || (p.event_mt() != 2) )
-     {
-      double flux = 0;
-      
-     }
-        
-  for (auto i_tally : model::active_point_tallies) {
-    const Tally& tally {*model::tallies[i_tally]};
-    // Initialize an iterator over valid filter bin combinations.  If there are
-    // no valid combinations, use a continue statement to ensure we skip the
-    // assume_separate break below.
-    auto filter_iter = FilterBinIter(tally, ghost_p);
-    auto end = FilterBinIter(tally, true, &ghost_p.filter_matches());
-    if (filter_iter == end)
-      continue;
-
-    // Loop over filter bins.
-      
-
-    for (; filter_iter != end; ++filter_iter) {
-      auto filter_index = filter_iter.index_;
-      auto filter_weight = filter_iter.weight_;
-
-      // Loop over nuclide bins.
-      for (auto i = 0; i < tally.nuclides_.size(); ++i) {
-        auto i_nuclide = tally.nuclides_[i];
-
-        double atom_density = 0.;
-        if (i_nuclide >= 0) {
-          auto j =
-            model::materials[ghost_p.material()]->mat_nuclide_index_[i_nuclide];
-          if (j == C_NONE)
-            continue;
-          atom_density = model::materials[ghost_p.material()]->atom_density_(j);
-        }
-        // TODO: consider replacing this "if" with pointers or templates
-        if (settings::run_CE) {
-          score_general_ce_nonanalog(ghost_p, i_tally, i * tally.scores_.size(),
-            filter_index, filter_weight, i_nuclide, atom_density, myflux);
-        } else {
-          fatal_error("multi group not implemnted for point tally");
-        }
-      }
-    }
-
-    // If the user has specified that we can assume all tallies are spatially
-    // separate, this implies that once a tally has been scored to, we needn't
-    // check the others. This cuts down on overhead when there are many
-    // tallies specified
-    if (settings::assume_separate)
-      break;
-  }
-
-  // Reset all the filter matches for the next tally event.
-  for (auto& match : p.filter_matches())
-    match.bins_present_ = false;
 
   } //for loop on ghost particles
 
