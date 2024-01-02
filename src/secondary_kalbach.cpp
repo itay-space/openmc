@@ -359,7 +359,7 @@ void KalbachMann::get_pdf(
     }
   }
 
-  get_pdf_to_point_inelastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
+  get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
   //std::cout << " sent to pdf_elastic from kalbach, E3_out_cm  " << E_out/1e6 <<std::endl;
   //std::cout << " mu_cm" << mu_cm[0] <<std::endl;
   //std::cout << "ghost_particles[0].E() " << ghost_particles[0].E() <<std::endl;
