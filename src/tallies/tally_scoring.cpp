@@ -2815,8 +2815,10 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   double B[4] = {E1_tot , p1.x,p1.y,p1.z};
   boostf( A, B , p1_cm);
   double p1_tot_cm = std::sqrt(p1_cm[1]*p1_cm[1]+p1_cm[2]*p1_cm[2]+p1_cm[3]*p1_cm[3]);
-  double cond = (M_cm/p_tot_cm) * (p1_tot_cm/m3);
-  double insq = (M_cm*M_cm * p1_tot_cm*p1_tot_cm - m3*m3*p_tot_cm*p_tot_cm*sin_lab_sq);
+  double E3_cm = (M_cm*M_cm + m3*m3 - m4*m4) / (2*M_cm);
+  double p3_tot_cm = std::sqrt(E3_cm*E3_cm - m3*m3);
+  double cond = (M_cm/p_tot_cm) * (p3_tot_cm/m3);
+  double insq = (M_cm*M_cm * p3_tot_cm*p3_tot_cm - m3*m3*p_tot_cm*p_tot_cm*sin_lab_sq);
   double p3_tot_1 = 0;
   double p3_tot_2 = 0;
   double E3k_1 = 0;
