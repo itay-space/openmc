@@ -2835,7 +2835,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   //auto& d = rx->products_[0].distribution_[0];
   //auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
   
-
+  double q = (p_tot_cm / E_cm) * (E3_cm / p3_tot_cm);
 
 
 
@@ -2852,10 +2852,6 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     boostf( A, B1 , Fp3cm_1);  
     
     double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
-    
-    
-    double E3cm_1 = std::sqrt(p3cm_tot_1*p3cm_tot_1 + m3*m3);
-    //std::cout << "E3cm_1 "<<E3cm_1 <<std::endl;
     double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);// good until here
     if (std::abs(mucm_1) > 1.0)
    { mucm_1 =std::copysign(1.0, mucm_1);}
@@ -2864,21 +2860,21 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     mu_cm.push_back(mucm_1);
 
     double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-    double q1 = (p_tot_cm / E_cm) * (E3cm_1 / p3cm_tot_1);
+    
     
     if (std::abs(mucm03_1) > 1.0)
    { mucm03_1 =std::copysign(1.0, mucm03_1);}
     double sincm1 = std::sqrt(1-mucm03_1*mucm03_1); // if this is zero derivative is inf so pdf is 0
     double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
-    double derivative1 =  gamma*(1+q1*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
-    if (sincm1==0 && sin_lab_sq == 0)
+    double derivative1 =  gamma*(1+q*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
+    if (sin_lab_sq < 0.1)
       {
-          derivative1 =  ( (cos_lab) / (gamma*mucm03_1*(1+q1*mucm03_1)) ) * ( (cos_lab) / (gamma*mucm03_1*(1+q1*mucm03_1)) ) ;
+          derivative1 =  ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) * ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) ;
       }
     Js.push_back(derivative1);
     //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
     //double pdf1lab = pdf1cm/std::abs(derivative1);
- 
+    //std::cout << "Fp3cm_1[0] -m3 "<< Fp3cm_1[0] - m3 <<std::endl;
     //std::cout << "cos_lab  "<< cos_lab <<std::endl;
     //std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
     //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
@@ -2895,13 +2891,10 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
       p3_2 = u_lab_unit*p3_tot_2;
       double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
-      std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
       E3k_2 = (E3_tot_2 -m3 )*1e6; 
       double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
       boostf( A, B2 , Fp3cm_2);
       double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
-      double E3cm_2 = std::sqrt(p3cm_tot_2*p3cm_tot_2 + m3*m3);
-      std::cout << "E3cm_2 "<<E3cm_2 <<std::endl;
       double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
       if (std::abs(mucm_2) > 1)
       {mucm_2 =std::copysign(1.0, mucm_2);}
@@ -2910,16 +2903,16 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       mu_cm.push_back(mucm_2);
       
       double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-      double q2 = (p_tot_cm / E_cm) * (E3cm_2 / p3cm_tot_2);
       if (std::abs(mucm03_2) > 1.0)
       { mucm03_2 =std::copysign(1.0, mucm03_2);}
       double sincm2 = std::sqrt(1-mucm03_2*mucm03_2); 
       double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2; 
-      double derivative2 =  gamma*(1+q2*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
-      if (sincm2==0 && sin_lab_sq == 0)
+      double derivative2 =  gamma*(1+q*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
+      if (sin_lab_sq < 0.1)
       {
-          derivative2 =  ( (cos_lab) / (gamma*mucm03_2*(1+q2*mucm03_2)) ) * ( (cos_lab) / (gamma*mucm03_2*(1+q2*mucm03_2)) ) ;
+          derivative2 =  ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) * ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) ;
       }
+     // std::cout << "Fp3cm_2[0] -m3 "<< Fp3cm_2[0] - m3 <<std::endl;
      // double pdf2lab = pdf2cm/std::abs(derivative2);
      // std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
      // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
