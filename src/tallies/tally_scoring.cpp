@@ -2836,7 +2836,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
   //auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
   
   double q = (p_tot_cm / E_cm) * (E3_cm / p3_tot_cm);
-
+  double approx_tol = 0.01;
 
 
   if ( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
@@ -2867,7 +2867,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
     double sincm1 = std::sqrt(1-mucm03_1*mucm03_1); // if this is zero derivative is inf so pdf is 0
     double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
     double derivative1 =  gamma*(1+q*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
-    if (sin_lab_sq < 0.1)
+    if (sin_lab_sq < approx_tol)
       {
           derivative1 =  ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) * ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) ;
       }
@@ -2908,7 +2908,7 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
       double sincm2 = std::sqrt(1-mucm03_2*mucm03_2); 
       double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2; 
       double derivative2 =  gamma*(1+q*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
-      if (sin_lab_sq < 0.1)
+      if (sin_lab_sq < approx_tol)
       {
           derivative2 =  ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) * ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) ;
       }
