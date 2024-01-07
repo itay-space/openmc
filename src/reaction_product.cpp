@@ -109,11 +109,11 @@ void ReactionProduct::sample(
   }
 }
 void ReactionProduct::get_pdf(
-  double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
+  int i_tally, double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
  
-  double det_pos[3] = {0,0,0};
-  get_det_pos(det_pos);
+  double det_pos[3];
+  get_det_pos(det_pos , i_tally);
 
   int distribution_index;
   auto n = applicability_.size();

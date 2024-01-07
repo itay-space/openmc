@@ -215,8 +215,9 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
     // Sample delayed group and angle/energy for fission reaction
     sample_fission_neutron(i_nuclide, rx, &site, p);
     p.event_index_mt() = -999; 
-    score_fission_neutron(i_nuclide, rx, &site, p,mu_cm ,Js,ghost_particles,pdfs_lab);
-
+    for (auto i_tally : model::active_point_tallies){
+    score_fission_neutron(i_tally, i_nuclide, rx, &site, p,mu_cm ,Js,ghost_particles,pdfs_lab);
+    }
     // Store fission site in bank
     if (use_fission_bank) {
       int64_t idx = simulation::fission_bank.thread_safe_append(site);
@@ -824,9 +825,10 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
   data::thermal_scatt[i_sab]->data_[i_temp].sample(
     micro, p.E(), &E_out, &p.mu(), p.current_seed());
 
+  for (auto i_tally : model::active_point_tallies){
   double E_out_ghost;
-  double det_pos[3] = {0,0,0};
-  get_det_pos(det_pos);
+  double det_pos[3];
+  get_det_pos(det_pos , i_tally);
   Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
                    det_pos[2]-p.r().z};
@@ -837,7 +839,8 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
   Particle ghost_particle=Particle();
   //std::cout << "E out ghost " << E_out_ghost << std::endl;
   ghost_particle.initilze_ghost_particle(p,u_lab_unit,E_out_ghost);
-  score_ghost_particle(ghost_particle , pdf);
+  score_ghost_particle(ghost_particle , pdf , i_tally); 
+   }
 
   // Set energy to outgoing, change direction of particle
   p.E() = E_out;
@@ -1124,7 +1127,7 @@ void sample_fission_neutron(
   site->u = rotate_angle(p.u(), mu, nullptr, seed);
 }
 
-void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &mu_cm,std::vector<double> &Js  ,std::vector<Particle> &ghost_particles, std::vector<double> &pdfs_lab)
+void score_fission_neutron(int i_tally , int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &mu_cm,std::vector<double> &Js  ,std::vector<Particle> &ghost_particles, std::vector<double> &pdfs_lab)
 {
    
 
@@ -1182,7 +1185,7 @@ void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, 
     pdfs_lab.clear();
     ghost_particles.clear();
     double E_out;
-    rx.products_[site->delayed_group].get_pdf(E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
+    rx.products_[site->delayed_group].get_pdf(i_tally , E_in,E_out,seed ,p, mu_cm, Js ,ghost_particles ,pdfs_lab);
 
     // resample if energy is greater than maximum neutron energy
     constexpr int neutron = static_cast<int>(ParticleType::neutron);
@@ -1204,7 +1207,7 @@ void score_fission_neutron(int i_nuclide, const Reaction& rx, SourceSite* site, 
  for (size_t index = 0; index < ghost_particles.size(); ++index) {
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
-          score_ghost_particle(ghost_p , pdf_lab);
+          score_ghost_particle(ghost_p , pdf_lab , i_tally);
       //    std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
        //   std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding

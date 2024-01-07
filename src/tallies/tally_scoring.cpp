@@ -2519,6 +2519,7 @@ void score_point_tally(Particle& p)
   if ((p.event_mt() == 101) || (p.event_mt() == 18) || (p.event_index_mt() == -1234))
    return; // absorption or fission or s(a,b)
 
+for (auto i_tally : model::active_point_tallies){
   //std::cout<< "i of reaction tally scoring" << p.event_index_mt()<<std::endl;
   double yield = 1;
  //std::cout << "mt = " << p.event_mt() <<std::endl;
@@ -2541,8 +2542,8 @@ void score_point_tally(Particle& p)
   }
 
   // Get position (x,y,z) of detector
-  double det_pos[3] = {0,0,0};
-  get_det_pos(det_pos);
+  double det_pos[3];
+  get_det_pos(det_pos , i_tally);
 
    if (p.event_mt() == 2 && p.event_index_mt() != -1234)
    {
@@ -2563,7 +2564,7 @@ void score_point_tally(Particle& p)
    double E_in = p.E_last();
   // std::cout << "E_in collision " << E_in<<std::endl;
    double E_out;
-   rx->products_[0].get_pdf(E_in, E_out, p.current_seed(),p ,mu_cm ,Js, ghost_particles,pdfs_lab);
+   rx->products_[0].get_pdf(i_tally , E_in, E_out, p.current_seed(),p ,mu_cm ,Js, ghost_particles,pdfs_lab);
 
  yield = (*rx->products_[0].yield_)(p.E_last());
           if (std::floor(yield) != yield && yield > 0)
@@ -2597,32 +2598,35 @@ if (ghost_particles.size()==0)
           auto& ghost_p = ghost_particles[index];
           double pdf_lab = pdfs_lab[index];
           //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
-          score_ghost_particle(ghost_p , pdf_lab);
+          score_ghost_particle(ghost_p , pdf_lab , i_tally);
           //std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
           //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
           //calculate shielding
   } //for loop on ghost particles
 
-
+}
 }
 
-void get_det_pos(double (&det_pos)[3])
+void get_det_pos(double (&det_pos)[3] , int i_tally)
 {
- for (auto i_tally : model::active_point_tallies) 
-  {
-    const Tally& tally {*model::tallies[i_tally]};
-    for (auto i = 0; i < tally.positions_.size(); ++i)
-       { if (tally.positions_.size() > 1) {
-        auto pos_coord = tally.positions_[i];
-        det_pos[i] = std::stod(pos_coord);
-        }}
-  }
+        const Tally& tally {*model::tallies[i_tally]};
+        if (tally.positions_.size() == 3)
+        {
+        for (auto i = 0; i < tally.positions_.size(); ++i){
+          auto pos_coord = tally.positions_[i];
+          det_pos[i] = std::stod(pos_coord);
+        }
+        }
+        else{
+          fatal_error("user must use 3 positions");
+        }
 }
 
 void score_point_tally_from_source(const SourceSite* src)
 { double flux = 0;
-  double det_pos[3] = {0,0,0}; // Get position (x,y,z) of detector
-  get_det_pos(det_pos);
+for (auto i_tally : model::active_point_tallies){
+  double det_pos[3]; // Get position (x,y,z) of detector
+  get_det_pos(det_pos , i_tally);
   Direction u_lab {det_pos[0]-src->r.x,  // towards the detector
                    det_pos[1]-src->r.y,
                    det_pos[2]-src->r.z};
@@ -2670,7 +2674,8 @@ if (angleDistribution)
     Particle ghost_particle=Particle();
     ghost_particle.initilze_ghost_particle_from_source(src,u_lab_unit);
           //if (std::isnan(flux)) {std::cout << "flux nan from source "  << std::endl;flux=0;}
-score_ghost_particle(ghost_particle,pdf_mu_det);
+score_ghost_particle(ghost_particle,pdf_mu_det , i_tally);
+}
 
 }
 
@@ -2927,42 +2932,26 @@ void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double
 
 
 }
-void score_ghost_particle(Particle& ghost_p , double pdf_lab)
+void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
 {
          
          //std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
-        double det_pos[3] = {0,0,0};
-        get_det_pos(det_pos);
+        double det_pos[3];
+        get_det_pos(det_pos , i_tally);
         Direction u_lab {det_pos[0]-ghost_p.r().x,  // towards the detector
                    det_pos[1]-ghost_p.r().y,
                    det_pos[2]-ghost_p.r().z};
         Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
        double total_distance = u_lab.norm();
         double total_MFP1 = get_MFP(ghost_p,total_distance);
-          double myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
-         // std::cout << "myflux at source: " << myflux << std::endl;
-         
-         // std::cout << "p.n_col " << ghost_p.n_collision() << std::endl;
-
+          double myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;         
           if (myflux < 0) {
     std::cout << "myflux: " << myflux << std::endl;
     std::cout << "ghost_p.event_mt()" << ghost_p.event_mt() << std::endl;
     fatal_error("negetive flux");
 }
-      //    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
-   // std::cout << "exp(-total_MFP1): " << exp(-total_MFP1) << std::endl;
-   // std::cout << "(2 * PI * total_distance * total_distance): " << (2 * PI * total_distance * total_distance) << std::endl;
-   // std::cout << "pdf_lab: " << pdf_lab << std::endl;
-          //fluxes.push_back(flux1);
-          //if (std::isnan(flux)) {flux=0;}
-         // std::cout << "myflux" << myflux <<std::endl;
-          if ((ghost_p.type() != ParticleType::neutron) || (ghost_p.event_mt() != 2) )
-     {
-      double flux = 0;
-      
+      if (ghost_p.type() != ParticleType::neutron) {myflux = 0;  
      }
-        
-  for (auto i_tally : model::active_point_tallies) {
     const Tally& tally {*model::tallies[i_tally]};
     // Initialize an iterator over valid filter bin combinations.  If there are
     // no valid combinations, use a continue statement to ensure we skip the
@@ -2970,7 +2959,7 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab)
     auto filter_iter = FilterBinIter(tally, ghost_p);
     auto end = FilterBinIter(tally, true, &ghost_p.filter_matches());
     if (filter_iter == end)
-      continue;
+      return;
 
     // Loop over filter bins.
       
@@ -3006,8 +2995,7 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab)
     // check the others. This cuts down on overhead when there are many
     // tallies specified
     if (settings::assume_separate)
-      break;
-  }
+      return;
 
   // Reset all the filter matches for the next tally event.
   for (auto& match : ghost_p.filter_matches())

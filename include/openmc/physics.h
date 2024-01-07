@@ -91,7 +91,7 @@ void sample_fission_neutron(
   int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p);
 
 void score_fission_neutron(
-  int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles,std::vector<double> &pdfs_lab);
+  int i_tally  , int i_nuclide, const Reaction& rx, SourceSite* site, Particle& p , std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles,std::vector<double> &pdfs_lab);
 
 
 //! handles all reactions with a single secondary neutron (other than fission),
