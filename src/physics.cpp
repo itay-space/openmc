@@ -215,9 +215,6 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
     // Sample delayed group and angle/energy for fission reaction
     sample_fission_neutron(i_nuclide, rx, &site, p);
     p.event_index_mt() = -999; 
-    for (auto i_tally : model::active_point_tallies){
-    score_fission_neutron(i_tally, i_nuclide, rx, &site, p,mu_cm ,Js,ghost_particles,pdfs_lab);
-    }
     // Store fission site in bank
     if (use_fission_bank) {
       int64_t idx = simulation::fission_bank.thread_safe_append(site);

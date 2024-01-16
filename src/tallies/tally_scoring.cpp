@@ -2936,6 +2936,7 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
 {
          
          //std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
+        double myflux;
         double det_pos[3];
         get_det_pos(det_pos , i_tally);
         Direction u_lab {det_pos[0]-ghost_p.r().x,  // towards the detector
@@ -2943,8 +2944,22 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
                    det_pos[2]-ghost_p.r().z};
         Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
        double total_distance = u_lab.norm();
-        double total_MFP1 = get_MFP(ghost_p,total_distance);
-          double myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;         
+       double R0 = 0.01;
+      double total_MFP1 = get_MFP(ghost_p,total_distance);
+      if (total_distance < R0)
+       {
+           if (ghost_p.macro_xs().total == 0)
+           {
+              myflux = (ghost_p.wgt()*pdf_lab) /(2/3*PI*R0*R0); 
+           }
+           else
+           {
+            myflux = ( ghost_p.wgt() * pdf_lab * (1-exp(-ghost_p.macro_xs().total*R0)) )/( 2/3 * PI*R0*R0*R0 * ghost_p.macro_xs().total );
+           }
+       }
+        else{
+          myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab; 
+        }
           if (myflux < 0) {
     std::cout << "myflux: " << myflux << std::endl;
     std::cout << "ghost_p.event_mt()" << ghost_p.event_mt() << std::endl;

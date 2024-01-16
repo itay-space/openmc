@@ -185,7 +185,7 @@ double Uniform::sample(uint64_t* seed) const
 }
 double Uniform::get_pdf(double x) const 
 {
-  if (x<b_ && x>a_)
+  if (x<=b_ && x>=a_)
     return 1/(b_ - a_);
   else
     return 0;
