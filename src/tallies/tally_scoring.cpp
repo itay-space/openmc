@@ -2746,7 +2746,7 @@ void boostf( double A[4], double B[4], double X[4])
   return;
 }
 
-double get_MFP(Particle ghost_particle , double total_distance)
+double get_MFP(Particle &ghost_particle , double total_distance)
 {
     //calculate shilding
     double remaining_distance = total_distance;
@@ -2755,14 +2755,14 @@ double get_MFP(Particle ghost_particle , double total_distance)
     ghost_particle.boundary() = distance_to_boundary(ghost_particle);
     double advance_distance = ghost_particle.boundary().distance;
     
-    while(advance_distance<remaining_distance)
+    while(advance_distance<remaining_distance) // adavance to next boundary
     {
       total_MFP += advance_distance*ghost_particle.macro_xs().total;
         //Advance particle in space and time
       for (int j = 0; j < ghost_particle.n_coord(); ++j) {
         ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
       }
-        remaining_distance-=advance_distance;
+        remaining_distance -= advance_distance;
         ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
         ghost_particle.event_cross_surface();
         ghost_particle.event_calculate_xs();
@@ -2770,7 +2770,11 @@ double get_MFP(Particle ghost_particle , double total_distance)
         advance_distance = ghost_particle.boundary().distance;
         //std::cout << "advance_distance " << advance_distance << std::endl;
     }
-
+    total_MFP += remaining_distance*ghost_particle.macro_xs().total; // adavance to next boundary
+    for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+        ghost_particle.coord(j).r += remaining_distance * ghost_particle.coord(j).u;
+    }
+    ghost_particle.time() += remaining_distance / ghost_particle.speed(); //not reletevistic
     return total_MFP;
 
 }
@@ -2946,15 +2950,22 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
        double total_distance = u_lab.norm();
        double R0 = 0.01;
       double total_MFP1 = get_MFP(ghost_p,total_distance);
+      //std::cout << "ghost_xs " << ghost_p.macro_xs().total << std::endl;
+      //std::cout << "ghost_x " << ghost_p.r().x << std::endl;
+      //std::cout << "ghost_y " << ghost_p.r().y << std::endl;
+      //std::cout << "ghost_z " << ghost_p.r().z << std::endl;
+
       if (total_distance < R0)
        {
            if (ghost_p.macro_xs().total == 0)
            {
               myflux = (ghost_p.wgt()*pdf_lab) /(2/3*PI*R0*R0); 
+              //std::cout<<"void"<<std::endl;
            }
            else
            {
             myflux = ( ghost_p.wgt() * pdf_lab * (1-exp(-ghost_p.macro_xs().total*R0)) )/( 2/3 * PI*R0*R0*R0 * ghost_p.macro_xs().total );
+            //std::cout<<"not void"<<std::endl;
            }
        }
         else{

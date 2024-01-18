@@ -76,7 +76,7 @@ void score_collision_tally(Particle& p);
 void score_point_tally(Particle& p);
 void get_det_pos(double (&det_pos)[3] , int i_tally);
 void score_point_tally_from_source(const SourceSite* src);
-double get_MFP(Particle ghost_particle , double total_distance);
+double get_MFP(Particle& ghost_particle , double total_distance);
 void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles , double E3k_cm_given = -1);
 void get_pdf_to_point_inelastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles  , double E3_cm);
 void get_mu_cm_inelastic(double det_pos[3] , double E_out,Particle &p);
