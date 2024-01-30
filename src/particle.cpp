@@ -97,7 +97,7 @@ void Particle::initilze_ghost_particle(Particle& p,Direction u_new, double E_new
   zero_flux_derivs();
 
   type() = p.type();
-  wgt() = p.wgt_last();
+  wgt() = p.wgt();
   wgt_last() = p.wgt_last();
   r() = p.r();
   r_last() = p.r();

@@ -51,6 +51,7 @@ struct SourceSite {
   double wgt {1.0};
   int delayed_group {0};
   int surf_id {0};
+  bool ext {false};
   ParticleType particle;
   int64_t parent_id;
   int64_t progeny_id;

@@ -2623,7 +2623,12 @@ void get_det_pos(double (&det_pos)[3] , int i_tally)
 }
 
 void score_point_tally_from_source(const SourceSite* src)
-{ double flux = 0;
+{ 
+if(!src->ext)
+{
+  return;
+}
+double flux = 0;
 for (auto i_tally : model::active_point_tallies){
   double det_pos[3]; // Get position (x,y,z) of detector
   get_det_pos(det_pos , i_tally);
@@ -2964,13 +2969,32 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
            }
            else
            {
-            myflux = ( ghost_p.wgt() * pdf_lab * (1-exp(-ghost_p.macro_xs().total*R0)) )/( 2/3 * PI*R0*R0*R0 * ghost_p.macro_xs().total );
+            // mutliplying in 1=10000/10000 to avoid float point error
+            myflux = ( 10000 * ghost_p.wgt() * pdf_lab * (1-exp(-ghost_p.macro_xs().total*R0)) )/( 10000 * 2/3 * PI*R0*R0*R0 * ghost_p.macro_xs().total );
+            
             //std::cout<<"not void"<<std::endl;
            }
        }
         else{
-          myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab; 
+          myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
         }
+
+        if (std::isnan(myflux) || std::abs(myflux) > 1e10 ) {
+    // Print the values of each term in the expression
+    std::cout << "myflux " << myflux << std::endl;
+    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
+    std::cout << "pdf_lab: " << pdf_lab << std::endl;
+    std::cout << "1 - exp(-ghost_p.macro_xs().total * R0): " << (1 - std::exp(-ghost_p.macro_xs().total * R0)) << std::endl;
+    std::cout << "2/3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total: " << (2.0/3.0 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total) << std::endl;
+
+    // Cause a segmentation fault to crash the program
+    int* ptr = nullptr;
+    *ptr = 42;  // This will trigger a segmentation fault
+}
+
+
+
+
           if (myflux < 0) {
     std::cout << "myflux: " << myflux << std::endl;
     std::cout << "ghost_p.event_mt()" << ghost_p.event_mt() << std::endl;
