@@ -827,7 +827,7 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
 
   for (auto i_tally : model::active_point_tallies){
   double E_out_ghost;
-  double det_pos[3];
+  double det_pos[4];
   get_det_pos(det_pos , i_tally);
   Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,

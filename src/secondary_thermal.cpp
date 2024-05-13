@@ -105,6 +105,9 @@ int checkNeighborCase(Neighbors neighbors) {
 
 double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,double nu) {
   // Use findNearestNeighbors to get information about nearest neighbors
+// Make sure mu is in range [-1,1] and return
+  if (std::abs(mu_0) > 1.0)
+    mu_0 = std::copysign(1.0, mu_0);
    Neighbors neighbors = findNearestNeighbors(sortedVector, mu_0);
    int mycase = checkNeighborCase(neighbors);
    double pdf;
@@ -139,7 +142,6 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
             // std::cout << "You chose option 2." << std::endl;
                     // Calculate Delta_b for Case 2
             double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
-
             // Check conditions and calculate pdf
             if (mu_0 > b_0 - delta_b_case2 && mu_0 <= b_0) {
                 pdf = 1.0 / (nu * 2.0 * delta_b_case2);
@@ -147,6 +149,9 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
                 pdf = 0.0;
             } else {
                 std::cout << "Invalid value of mu_0 for Case 2." << std::endl;
+                std::cout << "b_0: " << b_0 << std::endl;
+                std::cout << "delta_b_case2: " << delta_b_case2 << std::endl;
+                std::cout << "mu_0: " << mu_0 << std::endl;
                 pdf = -1; // 
             }
             break;

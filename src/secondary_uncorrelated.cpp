@@ -69,7 +69,7 @@ void UncorrelatedAngleEnergy::sample(
 }
 
 void UncorrelatedAngleEnergy::get_pdf(
-   double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
+   double det_pos[4],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
   bool COM = false;
   const auto& nuc {data::nuclides[p.event_nuclide()]};

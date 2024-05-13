@@ -2542,7 +2542,7 @@ for (auto i_tally : model::active_point_tallies){
   }
 
   // Get position (x,y,z) of detector
-  double det_pos[3];
+  double det_pos[4];
   get_det_pos(det_pos , i_tally);
 
    if (p.event_mt() == 2 && p.event_index_mt() != -1234)
@@ -2607,18 +2607,20 @@ if (ghost_particles.size()==0)
 }
 }
 
-void get_det_pos(double (&det_pos)[3] , int i_tally)
+void get_det_pos(double (&det_pos)[4] , int i_tally)
 {
         const Tally& tally {*model::tallies[i_tally]};
-        if (tally.positions_.size() == 3)
+        if (tally.positions_.size() == 4)
         {
-        for (auto i = 0; i < tally.positions_.size(); ++i){
+        for (auto i = 0; i < 3; ++i){
           auto pos_coord = tally.positions_[i];
           det_pos[i] = std::stod(pos_coord);
         }
+        auto R0 = tally.positions_[3];
+        det_pos[4] = std::stod(R0);
         }
         else{
-          fatal_error("user must use 3 positions");
+          fatal_error("user must use 3 positions and R0");
         }
 }
 
@@ -2630,7 +2632,7 @@ if(!src->ext)
 }
 double flux = 0;
 for (auto i_tally : model::active_point_tallies){
-  double det_pos[3]; // Get position (x,y,z) of detector
+  double det_pos[4]; // Get position (x,y,z) of detector
   get_det_pos(det_pos , i_tally);
   Direction u_lab {det_pos[0]-src->r.x,  // towards the detector
                    det_pos[1]-src->r.y,
@@ -2786,7 +2788,7 @@ double get_MFP(Particle &ghost_particle , double total_distance)
 
 
 
-void get_pdf_to_point_elastic(double det_pos[3] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles, double E3k_cm_given)
+void get_pdf_to_point_elastic(double det_pos[4] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles, double E3k_cm_given)
 {
    Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
                    det_pos[1]-p.r().y,
@@ -2946,14 +2948,14 @@ void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
          
          //std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
         double myflux;
-        double det_pos[3];
+        double det_pos[4];
         get_det_pos(det_pos , i_tally);
         Direction u_lab {det_pos[0]-ghost_p.r().x,  // towards the detector
                    det_pos[1]-ghost_p.r().y,
                    det_pos[2]-ghost_p.r().z};
         Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
        double total_distance = u_lab.norm();
-       double R0 = 0.01;
+      double R0 = det_pos[3];
       double total_MFP1 = get_MFP(ghost_p,total_distance);
       //std::cout << "ghost_xs " << ghost_p.macro_xs().total << std::endl;
       //std::cout << "ghost_x " << ghost_p.r().x << std::endl;

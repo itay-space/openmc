@@ -267,7 +267,7 @@ void CorrelatedAngleEnergy::sample(
 }
 
 void CorrelatedAngleEnergy::get_pdf(
-  double det_pos[3],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
+  double det_pos[4],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins

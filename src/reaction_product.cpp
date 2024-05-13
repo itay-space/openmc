@@ -112,7 +112,7 @@ void ReactionProduct::get_pdf(
   int i_tally, double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
 {
  
-  double det_pos[3];
+  double det_pos[4];
   get_det_pos(det_pos , i_tally);
 
   int distribution_index;
