@@ -28,18 +28,17 @@ void get_energy_index(
 
 // Structure to hold information about nearest neighbors and their counts
 struct Neighbors {
-    double a_0;
-    double a_1;
-    double b_0;
-    double b_1;
-    int leftCount;  // Number of neighbors to the left
-    int rightCount; // Number of neighbors to the right
+    double a_0, a_1, b_0, b_1;
+    int a_0_index, b_0_index;
+    int leftCount, rightCount;
 };
 
 Neighbors findNearestNeighbors(const std::vector<double>& sortedVector, double mu_0) {
     Neighbors result;
     result.leftCount = 0;
     result.rightCount = 0;
+    result.a_0_index = -1;  // Initialize with invalid index
+    result.b_0_index = -1;  // Initialize with invalid index
 
     // Find the iterator pointing to the first element that is not less than mu_0
     auto it = std::lower_bound(sortedVector.begin(), sortedVector.end(), mu_0);
@@ -48,6 +47,7 @@ Neighbors findNearestNeighbors(const std::vector<double>& sortedVector, double m
     if (it != sortedVector.begin()) {
         --it;
         result.a_0 = *it;
+        result.a_0_index = std::distance(sortedVector.begin(), it);
         ++result.leftCount;
 
         // Process the second left neighbor, if available
@@ -68,6 +68,7 @@ Neighbors findNearestNeighbors(const std::vector<double>& sortedVector, double m
     // Process neighbors to the right
     if (it != sortedVector.end()) {
         result.b_0 = *it;
+        result.b_0_index = std::distance(sortedVector.begin(), it);
         ++result.rightCount;
 
         // Process the second right neighbor, if available
@@ -97,13 +98,19 @@ int checkNeighborCase(Neighbors neighbors) {
     return 4;
     if (neighbors.leftCount == 2 && neighbors.rightCount == 0)
     return 5;
+    if (neighbors.leftCount == 1 && neighbors.rightCount == 1)
+    return 6;
+    if (neighbors.leftCount == 0 && neighbors.rightCount == 1)
+    return 7;
+    if (neighbors.leftCount == 1 && neighbors.rightCount == 0)
+    return 8;
 
     return -1;
 
 
 }
 
-double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,double nu) {
+double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,double nu,const std::vector<double>& cdfVector = std::vector<double>{-1}) {
   // Use findNearestNeighbors to get information about nearest neighbors
 // Make sure mu is in range [-1,1] and return
   if (std::abs(mu_0) > 1.0)
@@ -115,24 +122,33 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
    double a_1 = neighbors.a_1;
    double b_0 = neighbors.b_0;
    double b_1 = neighbors.b_1;
+   int a_0_index = neighbors.a_0_index;
+   int b_0_index = neighbors.b_0_index;
+   int mu_index;
+   double prob;
+    //std::cout << " mu_threshold" <<  mu_threshold << std::endl;
    switch (mycase) {
    case 1:
    {
-         //  std::cout << "You chose option 1." << std::endl;
+           //std::cout << "You chose option 1." << std::endl;
             // Calculate Delta_a and Delta_b
         double delta_a = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
         double delta_b = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
         
             // Check conditions and calculate pdf
             if (mu_0 >= a_0 && mu_0 < a_0 + delta_a) {
-                pdf = 1.0 / (nu * 2.0 * delta_a);
-                            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b);
+                pdf = 1.0 / ( 2.0 * delta_a);
+                mu_index = a_0_index;
+            } else if (mu_0 > b_0 - delta_b && mu_0 <= b_0) {
+                pdf = 1.0 / ( 2.0 * delta_b);
+                mu_index = b_0_index;
             } else if (mu_0 > a_0 + delta_a && mu_0 <= b_0 - delta_b) {
                             pdf = 0.0;
+                            mu_index = 0;
             } else {
                 std::cout << "Invalid value of mu_0 for Case 1." << std::endl;
                 pdf = -1; // 
+                mu_index = -1;
             }
             break;
 
@@ -144,57 +160,68 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
             double delta_b_case2 = 0.5 * std::min(b_1 - b_0, b_0 - (-1));
             // Check conditions and calculate pdf
             if (mu_0 > b_0 - delta_b_case2 && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b_case2);
+                pdf = 1.0 / ( 2.0 * delta_b_case2);
+                mu_index = b_0_index;
             } else if (mu_0 >= -1 && mu_0 <= b_0 - delta_b_case2) {
                 pdf = 0.0;
+                mu_index = 0;
             } else {
                 std::cout << "Invalid value of mu_0 for Case 2." << std::endl;
                 std::cout << "b_0: " << b_0 << std::endl;
                 std::cout << "delta_b_case2: " << delta_b_case2 << std::endl;
                 std::cout << "mu_0: " << mu_0 << std::endl;
                 pdf = -1; // 
+                mu_index = -1;
             }
             break;
 
   }
     case 3:
     {
-           // std::cout << "You chose option 3." << std::endl;
+            //std::cout << "You chose option 3." << std::endl;
                     // Calculate Delta_a and Delta_b for Case 3
             double delta_a_case3 = 0.5 * std::min(b_0 - a_0, a_0 - (-1));
             double delta_b_case3 = 0.5 * std::min(b_1 - b_0, b_0 - a_0);
 
             // Check conditions and calculate pdf
             if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case3) {
-                pdf = 1.0 / (nu * 2.0 * delta_a_case3);
+                pdf = 1.0 / ( 2.0 * delta_a_case3);
+                mu_index = a_0_index;
             } else if (mu_0 > b_0 - delta_b_case3 && mu_0 <= b_0) {
-                pdf = 1.0 / (nu * 2.0 * delta_b_case3);
+                pdf = 1.0 / ( 2.0 * delta_b_case3);
+                mu_index = b_0_index;
             } else if (mu_0 > a_0 + delta_a_case3 && mu_0 <= b_0 - delta_b_case3) {
                 pdf = 0.0;
+                mu_index = 0;
             } else {
                 std::cout << "Invalid value of mu_0 for Case 3." << std::endl;
                 pdf = -1; // 
+                mu_index = -1;
             }
             break;
 
     }
     case 4:
     {
-           //  std::cout << "You chose option 4." << std::endl;
+             //std::cout << "You chose option 4." << std::endl;
 // Calculate Delta_a and Delta_b for Case 4
     double delta_a_case4 = 0.5 * std::min(b_0 - a_0, a_0 - a_1);
     double delta_b_case4 = 0.5 * std::min(1 - b_0, b_0 - a_0);
 
     // Check conditions and calculate pdf
     if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case4) {
-        pdf = 1.0 / (nu * 2.0 * delta_a_case4);
+        pdf = 1.0 / ( 2.0 * delta_a_case4);
+        mu_index = a_0_index;
     } else if (mu_0 > b_0 - delta_b_case4 && mu_0 <= b_0) {
-        pdf = 1.0 / (nu * 2.0 * delta_b_case4);
+        pdf = 1.0 / ( 2.0 * delta_b_case4);
+        mu_index = b_0_index;
     } else if (mu_0 > a_0 + delta_a_case4 && mu_0 <= b_0 - delta_b_case4) {
         pdf = 0.0;
+        mu_index = 0;
     } else {
         std::cout << "Invalid value of mu_0 for Case 4." << std::endl;
         pdf = -1; // 
+        mu_index = -1;
     }
 
             break; 
@@ -208,25 +235,139 @@ double get_pdf_discrete(const std::vector<double>& sortedVector, double mu_0,dou
 
     // Check conditions and calculate pdf
     if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case5) {
-        pdf = 1.0 / (nu * 2.0 * delta_a_case5);
+        pdf = 1.0 / ( 2.0 * delta_a_case5);
+        mu_index = a_0_index;
     } else if (mu_0 > a_0 + delta_a_case5 && mu_0 <= 1) {
         pdf = 0.0;
+        mu_index = 0;
     } else {
         std::cout << "Invalid value of mu_0 for Case 5." << std::endl;
-        pdf = -1; // 
+        pdf = -1; //
+        mu_index = -1; 
     }
 
 
             break;          
-      }            
+      } 
+case 6:
+    { // mu has exactly one left neighbor and exactly one right neighbor
+
+            // std::cout << "You chose option 6." << std::endl;
+// Calculate Delta_a and Delta_b for Case 6
+    double delta_a_case6 = 0.5 * std::min(b_0 - a_0, a_0 - (-1));
+    double delta_b_case6 = 0.5 * std::min(1 - b_0, b_0 - a_0);
+
+    // Check conditions and calculate pdf
+    if (mu_0 >= a_0 && mu_0 < a_0 + delta_a_case6) {
+        pdf = 1.0 / ( 2.0 * delta_a_case6);
+        mu_index = a_0_index;
+    } else if (mu_0 > b_0 - delta_b_case6 && mu_0 <= b_0) {
+        pdf = 1.0 / ( 2.0 * delta_b_case6);
+        mu_index = b_0_index;
+    } else if (mu_0 > a_0 + delta_a_case6 && mu_0 <= b_0 - delta_b_case6) {
+        pdf = 0.0;
+        mu_index = 0;
+    } else {
+        std::cout << "Invalid value of mu_0 for Case 6." << std::endl;
+        pdf = -1; // 
+        mu_index = -1;
+    }
+
+            break; 
+
+    }     
+    case 7:
+    {// mu has no left neighbor and exactly one right neighbor
+            // std::cout << "You chose option 7." << std::endl;
+           // std::cout << "mu_0  "<< mu_0 << std::endl;
+            //std::cout << "b_0  "<< b_0 << std::endl;
+          //  std::cout << "mu_threshold  "<< mu_threshold << std::endl;
+// Calculate Delta_a and Delta_b for Case 7
+    double delta_case7 = 0.5 * std::min(1 - b_0, b_0 - (-1));
+
+    // Check conditions and calculate pdf
+    if (mu_0 >= b_0 - delta_case7 && mu_0 <= b_0) {
+        pdf = 1.0 / ( 2.0 * delta_case7);
+        mu_index = b_0_index;
+    } else if (mu_0 >= (-1)&& mu_0 <= b_0 - delta_case7) {
+        pdf = 0.0;
+        mu_index = 0;
+    } else {
+        std::cout << "Invalid value of mu_0 for Case 7." << std::endl;
+        pdf = -1; // 
+        mu_index = b_0_index;
+    }
+
+            break; 
+
+    }      
+
+    case 8:
+    {
+           // std::cout << "You chose option 8." << std::endl;
+// Calculate Delta_a and Delta_b for Case 8
+    double delta_case8 = 0.5 * std::min(1 - a_0, a_0 - (-1));
+
+    // Check conditions and calculate pdf
+    if (mu_0 >= a_0 && mu_0 <= a_0+delta_case8) {
+        pdf = 1.0 / ( 2.0 * delta_case8);
+        mu_index = a_0_index;
+    } else if (mu_0 <= 1&& mu_0 >= a_0 + delta_case8) {
+        pdf = 0.0;
+        mu_index = 0;
+    } else {
+        std::cout << "Invalid value of mu_0 for Case 8." << std::endl;
+        pdf = -1; // 
+        mu_index = -1;
+    }
+
+            break; 
+
+    }
         default:
         {
             std::cout << "Invalid case." << std::endl;
             pdf = -1;
         }
     }
+  if (cdfVector[0]==-1)
+    // equiprobable distribution 
+    prob = 1/nu;
+  else{
+    // calculate probability for each mu
+    std::vector<double> pVector;
+    if (!cdfVector.empty()) {
+        double norm = cdfVector.back();
 
-return pdf;
+        for (size_t i = cdfVector.size() - 1; i > 0; --i) {
+                pVector.push_back((cdfVector[i]-cdfVector[i - 1])/norm);
+            }
+        pVector.push_back(cdfVector[0]/norm);
+        }
+    prob = pVector[mu_index];
+
+
+
+  //   std::cout << "cdfVector: ";
+  //   for (const auto& val : cdfVector) {
+  //       std::cout << val << " ";
+  //   }
+  //   std::cout <<std::endl;
+
+  // std::cout << "pVector: ";
+  //   for (const auto& val : pVector) {
+  //       std::cout << val << " ";
+  //   }
+  //   std::cout <<std::endl;
+
+
+
+
+  }
+
+  
+
+return pdf*prob;
 
 
 }
@@ -267,38 +408,80 @@ double CoherentElasticAE::get_pdf(
   double E_in, double& E_out, double& mu, uint64_t* seed) const
 {
   // Energy doesn't change in elastic scattering (ENDF-102, Eq. 7-1)
+
+
+
   double pdf;
   E_out = E_in;
-  double E_k = E_in*(1-mu)/2;
-  
   const auto& energies {xs_.bragg_edges()};
   const auto& factors = xs_.factors();
-  if (E_in < energies.front())
-  {return 0;}
-  // Calculate normalized CDF
-    std::vector<double> normalized_cdf_E(factors.size());
-    std::transform(factors.begin(), factors.end(), normalized_cdf_E.begin(),
-                   [last_factor = factors.back()](double factor) {
-                       return factor / last_factor;
-                   });
 
-  // Calculate the derivative using finite differences
-   std::vector<double> pdf_E;
 
-    for (size_t i = 1; i < energies.size(); ++i) {
-        double energyDifference = energies[i] - energies[i - 1];
-        double cdfDifference = normalized_cdf_E[i] - normalized_cdf_E[i - 1];
-        double derivativeValue = cdfDifference / energyDifference;
+// std::cout << "E_in: " << E_in << std::endl;
 
-        pdf_E.push_back(derivativeValue);
+// std::cout << "Ein_vector: ";
+//     for (const auto& val : energies) {
+//         std::cout << val << " ";
+//     }
+//     std::cout << std::endl;
+
+
+       if (E_in < energies.front() || E_in > energies.back())
+  {
+    return 0;
+  }
+
+
+
+  const int i = lower_bound_index(energies.begin(), energies.end(), E_in);
+  std::vector<double> energies_cut(energies.begin(), energies.begin() + i +1);
+  std::vector<double> factors_cut(factors.begin(), factors.begin() + i + 1);
+
+  // std::cout << "i: " << i << std::endl;
+  // std::cout << "Ein_vector_cut: ";
+  //   for (const auto& val : energies_cut) {
+  //       std::cout << val << " ";
+  //   }
+  //   std::cout << std::endl;
+
+
+
+std::vector<double> mu_vector_rev;
+std::transform(energies_cut.begin(), energies_cut.end(), std::back_inserter(mu_vector_rev), [E_in](double Ei) {
+    return 1 - 2 * Ei /  E_in;});
+std::vector<double> mu_vector(mu_vector_rev.rbegin(), mu_vector_rev.rend());
+// find mu index in mu_vector
+//std::cout << "mu_vector.size(): " << mu_vector.size() << std::endl;
+const int k_i = lower_bound_index(mu_vector.begin(), mu_vector.end(), mu);
+const int k_f = k_i + 1;
+
+
+// Print mu and indices for debugging
+ // std::cout << "E_in: " << E_in << std::endl;
+ // std::cout << "i: " << i << std::endl;
+  //  std::cout << "mu: " << mu << std::endl;
+   // std::cout << "k_i: " << k_i << " k_f: " << k_f << std::endl;
+   // std::cout << "mu_vector.size(): " << mu_vector.size() << std::endl;
+
+/*
+// Print N for debugging
+    std::cout << "N: " << N << std::endl;
+  
+  // Print mu_vector for debugging
+    std::cout << "mu_vector: ";
+    for (const auto& val : mu_vector) {
+        std::cout << val << " ";
     }
+    std::cout << std::endl;
 
-  int i;
-  double f;
-  get_energy_index(energies , E_k ,i,f);
-
-            
-  return pdf_E[i]*E_in/2;
+    std::cout << "factors_cut: ";
+    for (const auto& val : factors_cut) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
+  */
+   return get_pdf_discrete(mu_vector,mu,1 , factors_cut);
+  
   
 }
 

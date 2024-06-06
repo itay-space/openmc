@@ -213,6 +213,7 @@ void Particle::from_source(const SourceSite* src)
   E_last() = E();
   time() = src->time;
   time_last() = src->time;
+  if (!model::active_point_tallies.empty())
   score_point_tally_from_source(src);
   
 
