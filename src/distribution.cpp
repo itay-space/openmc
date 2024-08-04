@@ -141,27 +141,27 @@ double Discrete::sample(uint64_t* seed) const
   return x_[di_.sample(seed)];
 }
 
-double Discrete::get_pdf(double x) const {
-    // Check if x is outside the range of possible outcomes
-    if (x < x_.front() || x > x_.back()) {
-        return 0.0;  // x is outside the valid range
-    }
+// double Discrete::get_pdf(double x) const {
+//     // Check if x is outside the range of possible outcomes
+//     if (x < x_.front() || x > x_.back()) {
+//         return 0.0;  // x is outside the valid range
+//     }
     
-     auto it = std::find(x_.begin(), x_.end(), x);
+//      auto it = std::find(x_.begin(), x_.end(), x);
 
-    // Check if x is a valid outcome
-    if (it != x_.end()) {
-        // Calculate the probability associated with the outcome using DiscreteIndex
-        size_t index = std::distance(x_.begin(), it);
-        double probability = di_.prob()[index];
-        return probability;
-    } else {
-        return 0.0;  // x is not a valid outcome
-    }
+//     // Check if x is a valid outcome
+//     if (it != x_.end()) {
+//         // Calculate the probability associated with the outcome using DiscreteIndex
+//         size_t index = std::distance(x_.begin(), it);
+//         double probability = di_.prob()[index];
+//         return probability;
+//     } else {
+//         return 0.0;  // x is not a valid outcome
+//     }
 
 
 
-}
+// }
 
 //==============================================================================
 // Uniform implementation
