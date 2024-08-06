@@ -6,7 +6,7 @@ from numbers import Integral, Real
 import operator
 from pathlib import Path
 import lxml.etree as ET
-
+from re import sub
 import h5py
 import numpy as np
 import pandas as pd
@@ -33,7 +33,7 @@ _NUCLIDE_CLASSES = (str, openmc.CrossNuclide, openmc.AggregateNuclide)
 _FILTER_CLASSES = (openmc.Filter, openmc.CrossFilter, openmc.AggregateFilter)
 
 # Valid types of estimators
-ESTIMATOR_TYPES = ['tracklength', 'collision', 'analog']
+ESTIMATOR_TYPES = ['tracklength', 'collision', 'analog' , 'point']
 
 
 class Tally(IDManagerMixin):
@@ -57,7 +57,7 @@ class Tally(IDManagerMixin):
     multiply_density : bool
         Whether reaction rates should be multiplied by atom density
 
-        .. versionadded:: 0.14.0
+        .. versionadded:: 0.13.4
     filters : list of openmc.Filter
         List of specified filters for the tally
     nuclides : list of str
@@ -127,7 +127,7 @@ class Tally(IDManagerMixin):
         self._with_batch_statistics = False
         self._derived = False
         self._sparse = False
-
+        self._positions = None
         self._sp_filename = None
         self._results_read = False
 
@@ -144,6 +144,8 @@ class Tally(IDManagerMixin):
         parts.append('{: <15}=\t{}'.format('Scores', self.scores))
         parts.append('{: <15}=\t{}'.format('Estimator', self.estimator))
         parts.append('{: <15}=\t{}'.format('Multiply dens.', self.multiply_density))
+        if self.positions is not None:
+            parts.append('{: <15}=\t{}'.format('positions', self.positions))
         return '\n\t'.join(parts)
 
     @property
@@ -154,6 +156,14 @@ class Tally(IDManagerMixin):
     def name(self, name):
         cv.check_type('tally name', name, str, none_ok=True)
         self._name = name
+
+    @property
+    def positions(self):
+       return self._positions
+    
+    @positions.setter
+    def positions(self, positions):
+        self._positions = positions
 
     @property
     def multiply_density(self):
@@ -872,6 +882,10 @@ class Tally(IDManagerMixin):
             subelement = ET.SubElement(element, "estimator")
             subelement.text = self.estimator
 
+        if self.positions is not None:
+            subelement = ET.SubElement(element, "positions")
+            subelement.text = ' '.join(str(x) for x in self.positions)
+
         # Optional Triggers
         for trigger in self.triggers:
             element.append(trigger.to_xml_element())
@@ -928,6 +942,10 @@ class Tally(IDManagerMixin):
         estimator_elem = elem.find('estimator')
         if estimator_elem is not None:
             tally.estimator = estimator_elem.text
+
+        positions_elem = elem.find('positions')
+        if positions_elem is not None:
+            tally.positions = positions_elem.text
 
         # Read triggers
         tally.triggers = [

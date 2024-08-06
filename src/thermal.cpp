@@ -1,8 +1,8 @@
 #include "openmc/thermal.h"
-
+#include <iomanip>
 #include <algorithm> // for sort, move, min, max, find
 #include <cmath>     // for round, sqrt, abs
-
+#include <fstream>
 #include "xtensor/xarray.hpp"
 #include "xtensor/xbuilder.hpp"
 #include "xtensor/xmath.hpp"
@@ -307,6 +307,142 @@ void ThermalData::sample(const NuclideMicroXS& micro_xs, double E,
   // -1 or 1
   if (std::abs(*mu) > 1.0)
     *mu = std::copysign(1.0, *mu);
+}
+
+double ThermalData::get_pdf(const NuclideMicroXS& micro_xs, double E,
+  double& E_out, double mu, uint64_t* seed)
+{
+  double pdf = -1;
+  AngleEnergy* angleEnergyPtr;
+  // Determine whether inelastic or elastic scattering occured
+  if (prn(seed) < micro_xs.thermal_elastic / micro_xs.thermal) {
+    //elastic_.distribution->get_pdf(E, *E_out, *mu, seed);
+    angleEnergyPtr = elastic_.distribution.get();
+  } else {
+    //inelastic_.distribution->get_pdf(E, *E_out, *mu, seed);
+    angleEnergyPtr = inelastic_.distribution.get();
+  }
+  
+
+  if (CoherentElasticAE* coherentElasticAE = dynamic_cast<CoherentElasticAE*>(angleEnergyPtr)) {
+      //  std::cout << "Used " << typeid(*coherentElasticAE).name() << " implementation." << std::endl;
+        pdf = (*coherentElasticAE).get_pdf(E, E_out, mu, seed);
+       // std::cout <<"pdf"<< pdf<< std::endl;
+       // std::cout <<"E"<<E<< std::endl;
+        //std::cout <<"mu"<< mu<< std::endl;
+    //std::ofstream outFile("/root/OpenMC/projects/openmc/paper/runs/disk2/mCH2_deg60_E0.025_rho1/pdf.txt");
+    //    for (double mu = -1.0; mu <= 1.0; mu += 0.001) {
+    // Calculate PDF using get_pdf method
+    //       double pdf1 = (*coherentElasticAE).get_pdf(E, E_out, mu, seed);    
+    // Save E, E_out, mu, and pdf to the file
+    //      outFile << E << "," << "," << mu << "," << pdf1 << std::endl;
+    //   }
+    //   outFile.close();
+    bool creat_pdf_file=false;
+
+
+    if (creat_pdf_file)
+     {
+    std::ofstream outFile("/home/itay/Documents/openmc/projects/tests/all_iso/thick_sphere/Graphite/pdf.txt");
+
+     for (double E = 0.001; E <= 0.2; E += 0.001) {
+        std::cout << "Ein" << E << std::endl;
+        for (double mu = -1.0; mu <= 1.0; mu += 0.001) {
+           // std::cout << "mu" << mu << std::endl;
+            // Calculate PDF using get_pdf method
+            //std::cout << "mu" << mu << std::endl;
+            double pdf1 = (*coherentElasticAE).get_pdf(E, E_out, mu, seed);
+            
+            // Save E, E_out, mu, and pdf to the file
+            outFile << E << "," << mu << "," << pdf1 << std::endl;
+            // Update and display progress bar
+                
+                
+        }
+      
+
+    
+  }
+std::cout << "Finnished" << E << std::endl;
+       outFile.close();
+      fatal_error("or");
+     }
+
+        // Handle CoherentElasticAE
+    } else if (IncoherentElasticAE* incoherentElasticAE = dynamic_cast<IncoherentElasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentElasticAE).name() << " implementation." << std::endl;
+        // Handle IncoherentElasticAE
+    } else if (IncoherentElasticAEDiscrete* incoherentElasticAEDiscrete = dynamic_cast<IncoherentElasticAEDiscrete*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentElasticAEDiscrete).name() << " implementation." << std::endl;
+        // Handle IncoherentElasticAEDiscrete
+    } else if (IncoherentInelasticAEDiscrete* incoherentInelasticAEDiscrete = dynamic_cast<IncoherentInelasticAEDiscrete*>(angleEnergyPtr)) {
+      //std::cout << "Used " << typeid(*incoherentInelasticAEDiscrete).name() << " implementation (water for example)" << std::endl;
+        pdf = (*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed,-1);
+       // pdf = 0.5;
+      //std::cout << "mu " << mu << std::endl;
+      //std::cout << "pdf returning from secondary thermal " << pdf << std::endl;
+      //std::cout << "E in " << E << std::endl;
+     //std::cout << "E out " << E_out << std::endl;
+     bool creat_pdf_file=false;
+     if (creat_pdf_file)
+     {
+    std::ofstream outFile("/root/OpenMC/projects/openmc/paper/runs/thermal/runs/mwater_deg60_E0.025_rho1/pdf.txt");
+    double h2o_Ein_min = 1.00000e-05;
+   double h2o_Ein_max = 4.46000e+00;
+   // Choose the number of steps in the logarithmic range
+int num_steps = 100;  // Adjust this as needed
+
+// Calculate the logarithmic step size
+double log_step = pow(h2o_Ein_max / h2o_Ein_min, 1.0 / num_steps);
+const int total_iterations = num_steps * 64 * ((2.0 / 0.01) + 1);
+    int current_iteration = 0;
+
+     for (double E = h2o_Ein_min; E <= h2o_Ein_max; E *= log_step) {
+    for (int l = 0; l <= 63; ++l) {
+        for (double mu = -1.0; mu <= 1.0; mu += 0.01) {
+            // Calculate PDF using get_pdf method
+            double pdf1 = (*incoherentInelasticAEDiscrete).get_pdf(E, E_out, mu, seed , l);
+            
+            // Save E, E_out, mu, and pdf to the file
+            outFile << E << "," << l << "," << mu << "," << pdf1 << std::endl;
+            // Update and display progress bar
+                ++current_iteration;
+                double progress = static_cast<double>(current_iteration) / total_iterations;
+                int bar_width = 50;
+                int bar_progress = static_cast<int>(progress * bar_width);
+
+                std::cout << "\r[";
+                for (int i = 0; i < bar_width; ++i) {
+                    if (i < bar_progress) {
+                        std::cout << "=";
+                    } else {
+                        std::cout << " ";
+                    }
+                }
+
+                std::cout << "] " << std::fixed << std::setprecision(2) << progress * 100.0 << "%";
+                std::cout.flush();
+        }
+    }
+}
+
+       outFile.close();
+     }
+           
+        // Handle IncoherentInelasticAEDiscrete
+    } else if (IncoherentInelasticAE* incoherentInelasticAE = dynamic_cast<IncoherentInelasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*incoherentInelasticAE).name() << " implementation." << std::endl;
+        // Handle IncoherentInelasticAE
+    } else if (MixedElasticAE* mixedElasticAE = dynamic_cast<MixedElasticAE*>(angleEnergyPtr)) {
+        std::cout << "Used " << typeid(*mixedElasticAE).name() << " implementation." << std::endl;
+        // Handle MixedElasticAE
+    } else {
+        std::cout << "Unknown derived type." << std::endl;
+    }
+
+
+ //std::cout << "pdf from function in thermal " << pdf << std::endl;
+ return pdf;
 }
 
 void free_memory_thermal()

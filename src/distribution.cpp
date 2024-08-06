@@ -133,10 +133,35 @@ Discrete::Discrete(const double* x, const double* p, int n) : di_(p, n)
   x_.assign(x, x + n);
 }
 
+
+
+
 double Discrete::sample(uint64_t* seed) const
 {
   return x_[di_.sample(seed)];
 }
+
+// double Discrete::get_pdf(double x) const {
+//     // Check if x is outside the range of possible outcomes
+//     if (x < x_.front() || x > x_.back()) {
+//         return 0.0;  // x is outside the valid range
+//     }
+    
+//      auto it = std::find(x_.begin(), x_.end(), x);
+
+//     // Check if x is a valid outcome
+//     if (it != x_.end()) {
+//         // Calculate the probability associated with the outcome using DiscreteIndex
+//         size_t index = std::distance(x_.begin(), it);
+//         double probability = di_.prob()[index];
+//         return probability;
+//     } else {
+//         return 0.0;  // x is not a valid outcome
+//     }
+
+
+
+// }
 
 //==============================================================================
 // Uniform implementation
@@ -157,6 +182,13 @@ Uniform::Uniform(pugi::xml_node node)
 double Uniform::sample(uint64_t* seed) const
 {
   return a_ + prn(seed) * (b_ - a_);
+}
+double Uniform::get_pdf(double x) const 
+{
+  if (x<=b_ && x>=a_)
+    return 1/(b_ - a_);
+  else
+    return 0;
 }
 
 //==============================================================================
@@ -184,6 +216,10 @@ double PowerLaw::sample(uint64_t* seed) const
 {
   return std::pow(offset_ + prn(seed) * span_, ninv_);
 }
+double PowerLaw::get_pdf(double x) const 
+{
+  return x / span_ / ninv_  ;
+}
 
 //==============================================================================
 // Maxwell implementation
@@ -197,6 +233,10 @@ Maxwell::Maxwell(pugi::xml_node node)
 double Maxwell::sample(uint64_t* seed) const
 {
   return maxwell_spectrum(theta_, seed);
+}
+double Maxwell::get_pdf(double x) const 
+{
+  return -1;
 }
 
 //==============================================================================
@@ -218,6 +258,10 @@ double Watt::sample(uint64_t* seed) const
 {
   return watt_spectrum(a_, b_, seed);
 }
+double Watt::get_pdf(double x) const 
+{
+  return -1;
+}
 
 //==============================================================================
 // Normal implementation
@@ -237,6 +281,12 @@ Normal::Normal(pugi::xml_node node)
 double Normal::sample(uint64_t* seed) const
 {
   return normal_variate(mean_value_, std_dev_, seed);
+}
+double Normal::get_pdf(double x) const 
+{
+   double exponent = -0.5 * std::pow((x - mean_value_) / std_dev_, 2);
+   double coefficient = 1 / (std_dev_ * std::sqrt(2 * PI));
+   return coefficient * std::exp(exponent);
 }
 
 //==============================================================================
@@ -355,7 +405,7 @@ double Tabular::sample(uint64_t* seed) const
   }
 }
 
-double Tabular::get_pdf_value(double x,uint64_t* seed) const
+double Tabular::get_pdf(double x) const
 {
   // get PDF value at x 
 
@@ -406,6 +456,11 @@ double Equiprobable::sample(uint64_t* seed) const
   double xr = x_[i + i];
   return xl + ((n - 1) * r - i) * (xr - xl);
 }
+double Equiprobable::get_pdf(double x) const 
+{
+  return -1;
+}
+
 
 //==============================================================================
 // Mixture implementation
@@ -451,6 +506,10 @@ double Mixture::sample(uint64_t* seed) const
 
   // Sample the chosen distribution
   return it->second->sample(seed);
+}
+double Mixture::get_pdf(double x) const 
+{
+  return -1;
 }
 
 //==============================================================================

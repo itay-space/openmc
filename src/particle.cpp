@@ -92,12 +92,12 @@ void Particle::initilze_ghost_particle(Particle& p,Direction u_new, double E_new
   surface() = 0;
   cell_born() = C_NONE;
   material() = C_NONE;
-  n_collision() = 0;
+  n_collision() = p.n_collision();
   fission() = false;
   zero_flux_derivs();
 
   type() = p.type();
-  wgt() = p.wgt_last();
+  wgt() = p.wgt();
   wgt_last() = p.wgt_last();
   r() = p.r();
   r_last() = p.r();
@@ -109,6 +109,49 @@ void Particle::initilze_ghost_particle(Particle& p,Direction u_new, double E_new
   time() = p.time_last();
   time_last() = p.time_last();
 }
+
+void Particle::initilze_ghost_particle_from_source(const SourceSite* src , Direction u_new)
+{
+  // Reset some attributes
+  clear();
+  surface() = 0;
+  cell_born() = C_NONE;
+  material() = C_NONE;
+  n_collision() = 0;
+  fission() = false;
+  zero_flux_derivs();
+
+  // Copy attributes from source bank site
+  type() = src->particle;
+  wgt() = src->wgt;
+  wgt_last() = src->wgt;
+  r() = src->r;
+  u() = u_new;
+  r_last_current() = src->r;
+  r_last() = src->r;
+  u_last() = src->u;
+  if (settings::run_CE) {
+    E() = src->E;
+    g() = 0;
+  } else {
+    g() = static_cast<int>(src->E);
+    g_last() = static_cast<int>(src->E);
+    E() = data::mg.energy_bin_avg_[g()];
+  }
+  E_last() = E();
+  time() = src->time;
+  time_last() = src->time;
+  
+
+  //fmt::print("==============================particle created==============================\n");
+  //fmt::print("u = {0} , {1} , {2}\n",u().x,u().y,u().z);
+  //fmt::print("u_last = {0} , {1} , {2}\n",u_last().x,u_last().y,u_last().z);
+  //fmt::print("pos = {0} , {1} , {2}\n",r().x,r().y,r().z);
+
+}
+
+
+
 
 void Particle::move_distance(double length)
 {
@@ -170,6 +213,9 @@ void Particle::from_source(const SourceSite* src)
   E_last() = E();
   time() = src->time;
   time_last() = src->time;
+  if (!model::active_point_tallies.empty())
+  score_point_tally_from_source(src);
+  
 
   //fmt::print("==============================particle created==============================\n");
   //fmt::print("u = {0} , {1} , {2}\n",u().x,u().y,u().z);
@@ -361,10 +407,18 @@ void Particle::event_collide()
   // Score collision estimator tallies -- this is done after a collision
   // has occurred rather than before because we need information on the
   // outgoing energy for any tallies with an outgoing energy filter
-  if (!model::active_point_tallies.empty())
-    score_point_tally(*this);
+  /*
+  if ((this)->E_last()*1e8 < 10)
+  {
+  std::cout << "p->E_last()  "<< (this)->E_last() <<std::endl;
+  std::cout << "p->r()"<< this->r().x<<" "<<this->r().y<<" "<<this->r().z<<" "<<std::endl;
+  }
+  */
+
   if (!model::active_collision_tallies.empty())
     score_collision_tally(*this);
+  if (!model::active_point_tallies.empty())
+    score_point_tally(*this);
   if (!model::active_analog_tallies.empty()) {
     if (settings::run_CE) {
       score_analog_tally_ce(*this);
