@@ -140,28 +140,13 @@ double Discrete::sample(uint64_t* seed) const
 {
   return x_[di_.sample(seed)];
 }
+// Not implemented 
+ double Discrete::get_pdf(double x) const {
 
-// double Discrete::get_pdf(double x) const {
-//     // Check if x is outside the range of possible outcomes
-//     if (x < x_.front() || x > x_.back()) {
-//         return 0.0;  // x is outside the valid range
-//     }
-    
-//      auto it = std::find(x_.begin(), x_.end(), x);
-
-//     // Check if x is a valid outcome
-//     if (it != x_.end()) {
-//         // Calculate the probability associated with the outcome using DiscreteIndex
-//         size_t index = std::distance(x_.begin(), it);
-//         double probability = di_.prob()[index];
-//         return probability;
-//     } else {
-//         return 0.0;  // x is not a valid outcome
-//     }
+  return -1;
+}
 
 
-
-// }
 
 //==============================================================================
 // Uniform implementation
@@ -234,6 +219,7 @@ double Maxwell::sample(uint64_t* seed) const
 {
   return maxwell_spectrum(theta_, seed);
 }
+// Not implemented 
 double Maxwell::get_pdf(double x) const 
 {
   return -1;
@@ -258,6 +244,7 @@ double Watt::sample(uint64_t* seed) const
 {
   return watt_spectrum(a_, b_, seed);
 }
+// Not implemented 
 double Watt::get_pdf(double x) const 
 {
   return -1;
