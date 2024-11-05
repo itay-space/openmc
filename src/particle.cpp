@@ -417,7 +417,7 @@ void Particle::event_collide()
 
   if (!model::active_collision_tallies.empty())
     score_collision_tally(*this);
-  if (!model::active_point_tallies.empty())
+  if (!model::active_point_tallies.empty() && exhaustive_find_cell(*this))
     score_point_tally(*this);
   if (!model::active_analog_tallies.empty()) {
     if (settings::run_CE) {
