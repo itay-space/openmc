@@ -234,9 +234,8 @@ public:
   double sample(uint64_t* seed) const override;
   double get_pdf(double x) const;
 
-  
-  //double get_pdf_value(double x,uint64_t* seed) const;
-  // properties
+  // double get_pdf_value(double x,uint64_t* seed) const;
+  //  properties
   vector<double>& x() { return x_; }
   const vector<double>& x() const { return x_; }
   const vector<double>& p() const { return p_; }

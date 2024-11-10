@@ -18,7 +18,6 @@
 
 namespace openmc {
 
-
 // Forward declare the Surface class for use in Particle::cross_vacuum_bc, etc.
 class Surface;
 
@@ -63,8 +62,9 @@ public:
   //! simply as a secondary particle.
   //! \param src Source site data
   void from_source(const SourceSite* src);
-  void initilze_ghost_particle(Particle& p,Direction u, double E);
-  void initilze_ghost_particle_from_source(const SourceSite* src , Direction u_new);
+  void initilze_ghost_particle(Particle& p, Direction u, double E);
+  void initilze_ghost_particle_from_source(
+    const SourceSite* src, Direction u_new);
   // Coarse-grained particle events
   void event_calculate_xs();
   void event_advance();

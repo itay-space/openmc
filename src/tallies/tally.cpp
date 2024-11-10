@@ -287,7 +287,7 @@ Tally::Tally(pugi::xml_node node)
   // Check if user specified estimator
   if (check_for_node(node, "estimator")) {
     std::string est = get_node_value(node, "estimator");
-    fmt::print("est = {}\n",est);
+    fmt::print("est = {}\n", est);
     if (est == "analog") {
       estimator_ = TallyEstimator::ANALOG;
     } else if (est == "tracklength" || est == "track-length" ||
@@ -673,7 +673,6 @@ void Tally::set_nuclides(const vector<std::string>& nuclides)
   }
 }
 
-
 void Tally::set_positions(pugi::xml_node node)
 {
   positions_.clear();
@@ -698,9 +697,6 @@ void Tally::set_positions(const vector<std::string>& positions)
     positions_.push_back(pos);
   }
 }
-
-
-
 
 void Tally::init_triggers(pugi::xml_node node)
 {

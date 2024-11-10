@@ -1,37 +1,35 @@
 #include "openmc/tallies/tally_scoring.h"
-#include <fstream>
-#include <iostream>
-#include <csignal>
 #include "openmc/bank.h"
 #include "openmc/capi.h"
 #include "openmc/constants.h"
+#include "openmc/distribution_multi.h"
 #include "openmc/error.h"
+#include "openmc/geometry.h"
 #include "openmc/material.h"
 #include "openmc/mgxs_interface.h"
 #include "openmc/nuclide.h"
 #include "openmc/photon.h"
 #include "openmc/reaction_product.h"
 #include "openmc/search.h"
+#include "openmc/secondary_correlated.h"
+#include "openmc/secondary_uncorrelated.h"
 #include "openmc/settings.h"
 #include "openmc/simulation.h"
+#include "openmc/source.h"
 #include "openmc/string_utils.h"
 #include "openmc/tallies/derivative.h"
 #include "openmc/tallies/filter.h"
 #include "openmc/tallies/filter_cell.h"
 #include "openmc/tallies/filter_delayedgroup.h"
 #include "openmc/tallies/filter_energy.h"
-#include "openmc/distribution_multi.h"
-#include "openmc/secondary_uncorrelated.h"
-#include "openmc/secondary_correlated.h"
-#include "openmc/geometry.h"
-#include "openmc/source.h"
-//#include "/home/open_mc/openmc/src/tallies/MyCalcs.cpp"
-#include <typeinfo>
+#include <csignal>
+#include <fstream>
+#include <iostream>
 #include <string>
-int ghost_counter=0;
+#include <typeinfo>
+int ghost_counter = 0;
 int col_counter = 0;
 namespace openmc {
-
 
 //==============================================================================
 // FilterBinIter implementation
@@ -2353,7 +2351,7 @@ void score_tracklength_tally(Particle& p, double distance)
 {
   // Determine the tracklength estimate of the flux
   double flux = p.wgt() * distance;
- 
+
   // Set 'none' value for log union grid index
   int i_log_union = C_NONE;
 
@@ -2428,15 +2426,15 @@ void score_tracklength_tally(Particle& p, double distance)
 
 void score_collision_tally(Particle& p)
 {
-  if (std::isnan(p.r().x))
-  {
-  std::cout << "collision pos 1"<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
-  std::cout <<"p.E_last()"<<p.E_last()<<std::endl;
+  if (std::isnan(p.r().x)) {
+    std::cout << "collision pos 1" << p.r().x << " " << p.r().y << " "
+              << p.r().z << " " << std::endl;
+    std::cout << "p.E_last()" << p.E_last() << std::endl;
   }
-  if (p.E_last()*1e8 < 10 )
-  {
-  std::cout << "collision pos 1.5"<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
-  std::cout <<"p.E_last()"<<p.E_last()<<std::endl;
+  if (p.E_last() * 1e8 < 10) {
+    std::cout << "collision pos 1.5" << p.r().x << " " << p.r().y << " "
+              << p.r().z << " " << std::endl;
+    std::cout << "p.E_last()" << p.E_last() << std::endl;
   }
   // Determine the collision estimate of the flux
   double flux = 0.0;
@@ -2516,174 +2514,169 @@ void score_collision_tally(Particle& p)
 
 void score_point_tally(Particle& p)
 {
-  if ((p.event_mt() == 101) || (p.event_mt() == 18) || (p.event_index_mt() == -1234))
-   return; // absorption or fission or s(a,b)
+  if ((p.event_mt() == 101) || (p.event_mt() == 18) ||
+      (p.event_index_mt() == -1234))
+    return; // absorption or fission or s(a,b)
 
-for (auto i_tally : model::active_point_tallies){
-  //std::cout<< "i of reaction tally scoring" << p.event_index_mt()<<std::endl;
-  double yield = 1;
- //std::cout << "mt = " << p.event_mt() <<std::endl;
-  col_counter ++;
-  const auto& nuc {data::nuclides[p.event_nuclide()]};
-  const auto& rx {nuc->reactions_[p.event_index_mt()]};
-  auto& d = rx->products_[0].distribution_[0];
-  auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
-  // Initialize 
-  std::vector<double> mu_cm;
-  std::vector<double> Js;
-  std::vector<Particle> ghost_particles; 
-  std::vector<double> pdfs_lab;
-  //std::vector<double> fluxes;
-  if (std::isnan(p.r().x))
-  {
-  std::cout << "p.r() 2"<< p.r().x<<" "<<p.r().y<<" "<<p.r().z<<" "<<std::endl;
-  std::cout << "p.E_last()  "<< p.E_last() <<std::endl;
-  return; //sometimes the get_pdf function turns p.r() into nan
-  }
+  for (auto i_tally : model::active_point_tallies) {
+    // std::cout<< "i of reaction tally scoring" <<
+    // p.event_index_mt()<<std::endl;
+    double yield = 1;
+    // std::cout << "mt = " << p.event_mt() <<std::endl;
+    col_counter++;
+    const auto& nuc {data::nuclides[p.event_nuclide()]};
+    const auto& rx {nuc->reactions_[p.event_index_mt()]};
+    auto& d = rx->products_[0].distribution_[0];
+    auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
+    // Initialize
+    std::vector<double> mu_cm;
+    std::vector<double> Js;
+    std::vector<Particle> ghost_particles;
+    std::vector<double> pdfs_lab;
+    // std::vector<double> fluxes;
+    if (std::isnan(p.r().x)) {
+      std::cout << "p.r() 2" << p.r().x << " " << p.r().y << " " << p.r().z
+                << " " << std::endl;
+      std::cout << "p.E_last()  " << p.E_last() << std::endl;
+      return; // sometimes the get_pdf function turns p.r() into nan
+    }
 
-  // Get position (x,y,z) of detector
-  double det_pos[4];
-  get_det_pos(det_pos , i_tally);
+    // Get position (x,y,z) of detector
+    double det_pos[4];
+    get_det_pos(det_pos, i_tally);
 
-   if (p.event_mt() == 2 && p.event_index_mt() != -1234)
-   {
-   get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles);
-   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
+    if (p.event_mt() == 2 && p.event_index_mt() != -1234) {
+      get_pdf_to_point_elastic(det_pos, p, mu_cm, Js, ghost_particles);
+      for (std::size_t i = 0; i < mu_cm.size(); ++i) {
         // Assuming Js.size() is the same as mu_cm.size()
         double mu_c = mu_cm[i];
         double derivative = Js[i];
-        double pdf_cm = d_->angle().get_pdf(p.E_last(),mu_c,p.current_seed());
-        pdfs_lab.push_back(pdf_cm/std::abs(derivative));
+        double pdf_cm = d_->angle().get_pdf(p.E_last(), mu_c, p.current_seed());
+        pdfs_lab.push_back(pdf_cm / std::abs(derivative));
+      }
+    }
+    if (p.event_mt() != 2) { // Inelastic
+      // std::cout << "mt = " << p.event_mt() <<std::endl;
+      // make sure v_t is 0
+      // copy energy of neutron
+      double E_in = p.E_last();
+      // std::cout << "E_in collision " << E_in<<std::endl;
+      double E_out;
+      rx->products_[0].get_pdf(i_tally, E_in, E_out, p.current_seed(), p, mu_cm,
+        Js, ghost_particles, pdfs_lab);
+
+      yield = (*rx->products_[0].yield_)(p.E_last());
+      if (std::floor(yield) != yield && yield > 0) {
+        yield = 1;
+      }
+      for (auto& p_ghost : ghost_particles) {
+        p_ghost.wgt() = p_ghost.wgt() * yield;
+        ;
+      }
     }
 
-   }
-   if (p.event_mt() != 2){ // Inelastic
-  //std::cout << "mt = " << p.event_mt() <<std::endl;
-  // make sure v_t is 0
-  // copy energy of neutron
-   double E_in = p.E_last();
-  // std::cout << "E_in collision " << E_in<<std::endl;
-   double E_out;
-   rx->products_[0].get_pdf(i_tally , E_in, E_out, p.current_seed(),p ,mu_cm ,Js, ghost_particles,pdfs_lab);
-
- yield = (*rx->products_[0].yield_)(p.E_last());
-          if (std::floor(yield) != yield && yield > 0)
-         {
-              yield = 1;
-          }
-          for (auto& p_ghost : ghost_particles) {
-              p_ghost.wgt() = p_ghost.wgt() * yield; ;
+    // Assume one point detector
+    // Direction u_lab {det_pos[0]-p.r().x,
+    // det_pos[1]-p.r().y,det_pos[2]-p.r().z}; double total_distance =
+    // u_lab.norm(); collect MFP for solutions and calc fluxes if
+    // (std::isnan(flux1)) {flux1=0;} if (std::isnan(flux2)) {flux2=0;}
+    if (ghost_particles.size() == 0) {
+      // std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
     }
+    // std::cout << " ghost_particles.size()" <<ghost_particles.size()
+    // <<std::endl;
+    // starting scoring loop on ghost particles
+    for (size_t index = 0; index < ghost_particles.size(); ++index) {
+      auto& ghost_p = ghost_particles[index];
+      double pdf_lab = pdfs_lab[index];
+      // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
+      score_ghost_particle(ghost_p, pdf_lab, i_tally);
+      // std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
+      // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
+      // calculate shielding
+    } // for loop on ghost particles
+  }
+}
 
-
-
-
- }
-
-
-
-//Assume one point detector
-//Direction u_lab {det_pos[0]-p.r().x, det_pos[1]-p.r().y,det_pos[2]-p.r().z};
-//double total_distance = u_lab.norm();
-//collect MFP for solutions and calc fluxes
-  //if (std::isnan(flux1)) {flux1=0;}
-  //if (std::isnan(flux2)) {flux2=0;}
-if (ghost_particles.size()==0)
+void get_det_pos(double (&det_pos)[4], int i_tally)
 {
-   //std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
-}
-//std::cout << " ghost_particles.size()" <<ghost_particles.size() <<std::endl;
- // starting scoring loop on ghost particles
- for (size_t index = 0; index < ghost_particles.size(); ++index) {
-          auto& ghost_p = ghost_particles[index];
-          double pdf_lab = pdfs_lab[index];
-          //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
-          score_ghost_particle(ghost_p , pdf_lab , i_tally);
-          //std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
-          //std::cout << "E_ghost " << ghost_p.E() <<std::endl;
-          //calculate shielding
-  } //for loop on ghost particles
-
-}
-}
-
-void get_det_pos(double (&det_pos)[4] , int i_tally)
-{
-        const Tally& tally {*model::tallies[i_tally]};
-        if (tally.positions_.size() == 4)
-        {
-        for (auto i = 0; i < 3; ++i){
-          auto pos_coord = tally.positions_[i];
-          det_pos[i] = std::stod(pos_coord);
-        }
-        auto R0 = tally.positions_[3];
-        det_pos[4] = std::stod(R0);
-        }
-        else{
-          fatal_error("user must use 3 positions and R0");
-        }
+  const Tally& tally {*model::tallies[i_tally]};
+  if (tally.positions_.size() == 4) {
+    for (auto i = 0; i < 3; ++i) {
+      auto pos_coord = tally.positions_[i];
+      det_pos[i] = std::stod(pos_coord);
+    }
+    auto R0 = tally.positions_[3];
+    det_pos[4] = std::stod(R0);
+  } else {
+    fatal_error("user must use 3 positions and R0");
+  }
 }
 
 void score_point_tally_from_source(const SourceSite* src)
-{ 
-if(!src->ext)
 {
-  return;
-}
-double flux = 0;
-for (auto i_tally : model::active_point_tallies){
-  double det_pos[4]; // Get position (x,y,z) of detector
-  get_det_pos(det_pos , i_tally);
-  Direction u_lab {det_pos[0]-src->r.x,  // towards the detector
-                   det_pos[1]-src->r.y,
-                   det_pos[2]-src->r.z};
- Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-//Get the angle distribution
-double pdf_mu_det=0;
-Source& mysource = *(model::external_sources[0]);
-if (auto* independentSource = dynamic_cast<IndependentSource*>(&mysource)) 
-// Check if the actual type is IndependentSource
-{ UnitSphereDistribution* angleDistribution = independentSource->angle();
-if (angleDistribution) 
-{
-  Direction my_u_ref = angleDistribution->u_ref_;
-  Direction my_u_ref_unit = my_u_ref/my_u_ref.norm();
-    if (typeid(*angleDistribution) == typeid(PolarAzimuthal))
-    //polar and assuming phi is isotropic
-     {
-        double my_det_mu = my_u_ref_unit.dot(u_lab_unit);
-        if (std::abs(my_det_mu) > 1.0)
-       { my_det_mu= std::copysign(1.0, my_det_mu);}
-        auto* polarAzimuthalDistribution = dynamic_cast<PolarAzimuthal*>(angleDistribution);
-        Distribution* muDistribution = polarAzimuthalDistribution->mu();
-        Distribution* phiDistribution = polarAzimuthalDistribution->phi();
-        pdf_mu_det = muDistribution->get_pdf(my_det_mu) ;
-    } 
-    else if (typeid(*angleDistribution) == typeid(Isotropic)) 
-    //Isotropic
-    { pdf_mu_det= 0.5;} 
-    else if (typeid(*angleDistribution) == typeid(Monodirectional)) 
-    //pencil
-    {  if (my_u_ref_unit.dot(u_lab_unit) == 1) {
-      double total_distance = u_lab.norm();
-      pdf_mu_det=(2*PI*total_distance*total_distance); // to cancel the Rs
-      } // pdf is not defined for discrete case
-       } 
-    else  //unexpected type
-    {  fatal_error("unexpected type")   ;    }
-} 
+  if (!src->ext) {
+    return;
+  }
+  double flux = 0;
+  for (auto i_tally : model::active_point_tallies) {
+    double det_pos[4]; // Get position (x,y,z) of detector
+    get_det_pos(det_pos, i_tally);
+    Direction u_lab {det_pos[0] - src->r.x, // towards the detector
+      det_pos[1] - src->r.y, det_pos[2] - src->r.z};
+    Direction u_lab_unit = u_lab / u_lab.norm(); // normalize
+    // Get the angle distribution
+    double pdf_mu_det = 0;
+    Source& mysource = *(model::external_sources[0]);
+    if (auto* independentSource = dynamic_cast<IndependentSource*>(&mysource))
+    // Check if the actual type is IndependentSource
+    {
+      UnitSphereDistribution* angleDistribution = independentSource->angle();
+      if (angleDistribution) {
+        Direction my_u_ref = angleDistribution->u_ref_;
+        Direction my_u_ref_unit = my_u_ref / my_u_ref.norm();
+        if (typeid(*angleDistribution) == typeid(PolarAzimuthal))
+        // polar and assuming phi is isotropic
+        {
+          double my_det_mu = my_u_ref_unit.dot(u_lab_unit);
+          if (std::abs(my_det_mu) > 1.0) {
+            my_det_mu = std::copysign(1.0, my_det_mu);
+          }
+          auto* polarAzimuthalDistribution =
+            dynamic_cast<PolarAzimuthal*>(angleDistribution);
+          Distribution* muDistribution = polarAzimuthalDistribution->mu();
+          Distribution* phiDistribution = polarAzimuthalDistribution->phi();
+          pdf_mu_det = muDistribution->get_pdf(my_det_mu);
+        } else if (typeid(*angleDistribution) == typeid(Isotropic))
+        // Isotropic
+        {
+          pdf_mu_det = 0.5;
+        } else if (typeid(*angleDistribution) == typeid(Monodirectional))
+        // pencil
+        {
+          if (my_u_ref_unit.dot(u_lab_unit) == 1) {
+            double total_distance = u_lab.norm();
+            pdf_mu_det =
+              (2 * PI * total_distance * total_distance); // to cancel the Rs
+          } // pdf is not defined for discrete case
+        } else // unexpected type
+        {
+          fatal_error("unexpected type");
+        }
+      }
 
-   //std::cout << "pdf_mu_det "  << pdf_mu_det<< std::endl;
-    //Direction my_u_ref = angleDistribution->u_ref_;
-    //fmt::print("uref = {0} , {1} , {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
-} 
+      // std::cout << "pdf_mu_det "  << pdf_mu_det<< std::endl;
+      // Direction my_u_ref = angleDistribution->u_ref_;
+      // fmt::print("uref = {0} , {1} ,
+      // {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
+    }
 
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle_from_source(src,u_lab_unit);
-          //if (std::isnan(flux)) {std::cout << "flux nan from source "  << std::endl;flux=0;}
-score_ghost_particle(ghost_particle,pdf_mu_det , i_tally);
-}
-
+    Particle ghost_particle = Particle();
+    ghost_particle.initilze_ghost_particle_from_source(src, u_lab_unit);
+    // if (std::isnan(flux)) {std::cout << "flux nan from source "  <<
+    // std::endl;flux=0;}
+    score_ghost_particle(ghost_particle, pdf_mu_det, i_tally);
+  }
 }
 
 void score_surface_tally(Particle& p, const vector<int>& tallies)
@@ -2730,336 +2723,361 @@ void score_surface_tally(Particle& p, const vector<int>& tallies)
     match.bins_present_ = false;
 }
 
-void boostf( double A[4], double B[4], double X[4])
+void boostf(double A[4], double B[4], double X[4])
 {
   //
   //     boosts B(labfram) to A rest frame and gives output in X
   //
   double W;
   int j;
-  
-  if ((A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3])<=0) { 
-    std::cout <<"negative sqrt in boostf"<<A[0]<<A[1]<<A[2]<<A[3]<<std::endl;}
-      
-  W=sqrt(A[0]*A[0]-A[1]*A[1]-A[2]*A[2]-A[3]*A[3]);
 
-  if(W==0 || W==(-A[0])) std::cout <<"divid by 0 in boostf"<<std::endl;
+  if ((A[0] * A[0] - A[1] * A[1] - A[2] * A[2] - A[3] * A[3]) <= 0) {
+    std::cout << "negative sqrt in boostf" << A[0] << A[1] << A[2] << A[3]
+              << std::endl;
+  }
 
-  X[0]=(B[0]*A[0]-B[3]*A[3]-B[2]*A[2]-B[1]*A[1])/W;
-    for(j=1; j<=3; j++) {
-      X[j]=B[j]-A[j]*(B[0]+X[0])/(A[0]+W);
-    } 
+  W = sqrt(A[0] * A[0] - A[1] * A[1] - A[2] * A[2] - A[3] * A[3]);
+
+  if (W == 0 || W == (-A[0]))
+    std::cout << "divid by 0 in boostf" << std::endl;
+
+  X[0] = (B[0] * A[0] - B[3] * A[3] - B[2] * A[2] - B[1] * A[1]) / W;
+  for (j = 1; j <= 3; j++) {
+    X[j] = B[j] - A[j] * (B[0] + X[0]) / (A[0] + W);
+  }
 
   return;
 }
 
-double get_MFP(Particle &ghost_particle , double total_distance)
+double get_MFP(Particle& ghost_particle, double total_distance)
 {
-    //calculate shilding
-    double remaining_distance = total_distance;
-    double total_MFP = 0;
+  // calculate shilding
+  double remaining_distance = total_distance;
+  double total_MFP = 0;
+  ghost_particle.event_calculate_xs();
+  ghost_particle.boundary() = distance_to_boundary(ghost_particle);
+  double advance_distance = ghost_particle.boundary().distance;
+
+  while (advance_distance < remaining_distance) // Advance to next boundary
+  {
+    total_MFP += advance_distance * ghost_particle.macro_xs().total;
+    // Advance particle in space and time
+    for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+      ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
+    }
+    remaining_distance -= advance_distance;
+    ghost_particle.time() +=
+      advance_distance / ghost_particle.speed(); // not reletevistic
+    ghost_particle.event_cross_surface();
     ghost_particle.event_calculate_xs();
     ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-    double advance_distance = ghost_particle.boundary().distance;
-    
-    while(advance_distance<remaining_distance) // Advance to next boundary
-    {
-      total_MFP += advance_distance*ghost_particle.macro_xs().total;
-        //Advance particle in space and time
-      for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-        ghost_particle.coord(j).r += advance_distance * ghost_particle.coord(j).u;
-      }
-        remaining_distance -= advance_distance;
-        ghost_particle.time() += advance_distance / ghost_particle.speed(); //not reletevistic
-        ghost_particle.event_cross_surface();
-        ghost_particle.event_calculate_xs();
-        ghost_particle.boundary() = distance_to_boundary(ghost_particle);
-        advance_distance = ghost_particle.boundary().distance;
-        //std::cout << "advance_distance " << advance_distance << std::endl;
-    }
-    total_MFP += remaining_distance*ghost_particle.macro_xs().total; // advance to next boundary
-    for (int j = 0; j < ghost_particle.n_coord(); ++j) {
-        ghost_particle.coord(j).r += remaining_distance * ghost_particle.coord(j).u;
-    }
-    ghost_particle.time() += remaining_distance / ghost_particle.speed(); 
-    return total_MFP;
-
+    advance_distance = ghost_particle.boundary().distance;
+    // std::cout << "advance_distance " << advance_distance << std::endl;
+  }
+  total_MFP += remaining_distance *
+               ghost_particle.macro_xs().total; // advance to next boundary
+  for (int j = 0; j < ghost_particle.n_coord(); ++j) {
+    ghost_particle.coord(j).r += remaining_distance * ghost_particle.coord(j).u;
+  }
+  ghost_particle.time() += remaining_distance / ghost_particle.speed();
+  return total_MFP;
 }
 
-
-
-void get_pdf_to_point_elastic(double det_pos[4] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles, double E3k_cm_given)
+void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
+  std::vector<double>& mu_cm, std::vector<double>& Js,
+  std::vector<Particle>& ghost_particles, double E3k_cm_given)
 {
-   Direction u_lab {det_pos[0]-p.r().x,  // towards the detector
-                   det_pos[1]-p.r().y,
-                   det_pos[2]-p.r().z};
-  Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-  
-  double m1= p.getMass()/1e6; // mass of incoming particle in MeV
+  Direction u_lab {det_pos[0] - p.r().x, // towards the detector
+    det_pos[1] - p.r().y, det_pos[2] - p.r().z};
+  Direction u_lab_unit = u_lab / u_lab.norm(); // normalize
+
+  double m1 = p.getMass() / 1e6; // mass of incoming particle in MeV
   const auto& nuc {data::nuclides[p.event_nuclide()]};
   double awr = nuc->awr_;
-  double m2= m1*awr; // mass of target 
-  double m3= m1; // mass of outgoing particle to detector 
-  double m4= m2; // mass of recoil target  system
-  
-  double E1_tot = p.E_last()/1e6 + m1; // total Energy of incoming particle in MeV
-  double p1_tot = std::sqrt(E1_tot*E1_tot  - m1*m1); // total momenta of incoming particle in MeV
-  //if (p1_tot == 0) {return; std::cout << "p1_tot was zero "<<std::endl;} // without this the get_pdf function turns p.r() into nan
-  Direction p1=p1_tot*p.u_last(); // 3 momentum of incoming particle
-  Direction p2= p.v_t() * m2 /C_LIGHT; //3 momentum of target in lab
-  // std::cout<< "target_velocity" << p.v_t().x <<" " << p.v_t().y << " " << p.v_t().z << " " << std::endl; 
-  double E2_tot = std::sqrt(p2.norm()*p2.norm() + m2*m2);
+  double m2 = m1 * awr; // mass of target
+  double m3 = m1;       // mass of outgoing particle to detector
+  double m4 = m2;       // mass of recoil target  system
+
+  double E1_tot =
+    p.E_last() / 1e6 + m1; // total Energy of incoming particle in MeV
+  double p1_tot = std::sqrt(
+    E1_tot * E1_tot - m1 * m1); // total momenta of incoming particle in MeV
+  // if (p1_tot == 0) {return; std::cout << "p1_tot was zero "<<std::endl;} //
+  // without this the get_pdf function turns p.r() into nan
+  Direction p1 = p1_tot * p.u_last();    // 3 momentum of incoming particle
+  Direction p2 = p.v_t() * m2 / C_LIGHT; // 3 momentum of target in lab
+  // std::cout<< "target_velocity" << p.v_t().x <<" " << p.v_t().y << " " <<
+  // p.v_t().z << " " << std::endl;
+  double E2_tot = std::sqrt(p2.norm() * p2.norm() + m2 * m2);
   double E_cm = E1_tot + E2_tot;
   Direction p_cm = p1 + p2;
   double p_tot_cm = p_cm.norm();
-  
-  double cos_lab = u_lab_unit.dot(p_cm) /  ( p_tot_cm ) ;  // between cm and p3 
-  if (std::abs(cos_lab) > 1.0)
-   { cos_lab= std::copysign(1.0, cos_lab);}
 
+  double cos_lab = u_lab_unit.dot(p_cm) / (p_tot_cm); // between cm and p3
+  if (std::abs(cos_lab) > 1.0) {
+    cos_lab = std::copysign(1.0, cos_lab);
+  }
 
   double theta = std::acos(cos_lab);
-  double sin_lab_sq = 1 - cos_lab*cos_lab;
+  double sin_lab_sq = 1 - cos_lab * cos_lab;
 
-  double M_cm = std::sqrt(E_cm*E_cm - p_tot_cm*p_tot_cm); // mass of the center of mass (incoming and target)
-  double gamma = E_cm/M_cm;
+  double M_cm = std::sqrt(
+    E_cm * E_cm -
+    p_tot_cm * p_tot_cm); // mass of the center of mass (incoming and target)
+  double gamma = E_cm / M_cm;
   double p1_cm[4];
-  double A[4] = {E_cm, p_cm.x , p_cm.y , p_cm.z};
- // double invA[4] = {E_cm, -p_cm.x , -p_cm.y , -p_cm.z};
- //boostf( invA ,p1_cm,  maybe_p1_lab); boost back to lab
-  double B[4] = {E1_tot , p1.x,p1.y,p1.z};
-  boostf( A, B , p1_cm);
-  double p1_tot_cm = std::sqrt(p1_cm[1]*p1_cm[1]+p1_cm[2]*p1_cm[2]+p1_cm[3]*p1_cm[3]);
-  double E3_cm = (M_cm*M_cm + m3*m3 - m4*m4) / (2*M_cm);
-  if (E3k_cm_given >= 0.0)
-  {
+  double A[4] = {E_cm, p_cm.x, p_cm.y, p_cm.z};
+  // double invA[4] = {E_cm, -p_cm.x , -p_cm.y , -p_cm.z};
+  // boostf( invA ,p1_cm,  maybe_p1_lab); boost back to lab
+  double B[4] = {E1_tot, p1.x, p1.y, p1.z};
+  boostf(A, B, p1_cm);
+  double p1_tot_cm =
+    std::sqrt(p1_cm[1] * p1_cm[1] + p1_cm[2] * p1_cm[2] + p1_cm[3] * p1_cm[3]);
+  double E3_cm = (M_cm * M_cm + m3 * m3 - m4 * m4) / (2 * M_cm);
+  if (E3k_cm_given >= 0.0) {
     E3_cm = E3k_cm_given + m3;
-    m4 = std::sqrt(M_cm*M_cm + m3*m3 - 2 * M_cm * E3_cm);
+    m4 = std::sqrt(M_cm * M_cm + m3 * m3 - 2 * M_cm * E3_cm);
   }
-  double p3_tot_cm = std::sqrt(E3_cm*E3_cm - m3*m3);
-  double cond = (M_cm/p_tot_cm) * (p3_tot_cm/m3);
-  double insq = (M_cm*M_cm * p3_tot_cm*p3_tot_cm - m3*m3*p_tot_cm*p_tot_cm*sin_lab_sq);
+  double p3_tot_cm = std::sqrt(E3_cm * E3_cm - m3 * m3);
+  double cond = (M_cm / p_tot_cm) * (p3_tot_cm / m3);
+  double insq = (M_cm * M_cm * p3_tot_cm * p3_tot_cm -
+                 m3 * m3 * p_tot_cm * p_tot_cm * sin_lab_sq);
   double p3_tot_1 = 0;
   double p3_tot_2 = 0;
   double E3k_1 = 0;
   double E3k_2 = 0;
-  Direction p3_1 = {0,0,0};
-  Direction p3_2 = {0,0,0};
+  Direction p3_1 = {0, 0, 0};
+  Direction p3_2 = {0, 0, 0};
   double Fp3cm_1[4];
   double Fp3cm_2[4];
   const auto& rx {nuc->reactions_[0]};
-  //auto& d = rx->products_[0].distribution_[0];
-  //auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
-  
+  // auto& d = rx->products_[0].distribution_[0];
+  // auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
+
   double q = (p_tot_cm / E_cm) * (E3_cm / p3_tot_cm);
   double approx_tol = 0.0001;
 
-
-  if (insq>=0) //( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
+  if (insq >= 0) //( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
   {
     // first solution
-    
-    p3_tot_1 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab + 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
-    if (p3_tot_1 <=0)
-    return;
-    p3_1 = u_lab_unit*p3_tot_1;
-    double E3_tot_1 = std::sqrt(p3_tot_1*p3_tot_1 + m3*m3);
-   // std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
-    E3k_1 = (E3_tot_1 - m3) *1e6; // back to eV
-    double B1[4] = {E3_tot_1 , p3_1.x,p3_1.y,p3_1.z};
-    boostf( A, B1 , Fp3cm_1);  
-    
-    double p3cm_tot_1 = std::sqrt(Fp3cm_1[1]*Fp3cm_1[1]+Fp3cm_1[2]*Fp3cm_1[2]+Fp3cm_1[3]*Fp3cm_1[3]);
-    double mucm_1 = ( Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_1);// good until here
-    if (std::abs(mucm_1) > 1.0)
-   { mucm_1 =std::copysign(1.0, mucm_1);}
-    //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed()); 
-    //pdfs_cm.push_back(pdf1cm);
+
+    p3_tot_1 = ((M_cm * M_cm + m3 * m3 - m4 * m4) * p_tot_cm * cos_lab +
+                 2 * E_cm * std::sqrt(insq)) /
+               2 / (M_cm * M_cm + p_tot_cm * p_tot_cm * sin_lab_sq);
+    if (p3_tot_1 <= 0)
+      return;
+    p3_1 = u_lab_unit * p3_tot_1;
+    double E3_tot_1 = std::sqrt(p3_tot_1 * p3_tot_1 + m3 * m3);
+    // std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
+    E3k_1 = (E3_tot_1 - m3) * 1e6; // back to eV
+    double B1[4] = {E3_tot_1, p3_1.x, p3_1.y, p3_1.z};
+    boostf(A, B1, Fp3cm_1);
+
+    double p3cm_tot_1 =
+      std::sqrt(Fp3cm_1[1] * Fp3cm_1[1] + Fp3cm_1[2] * Fp3cm_1[2] +
+                Fp3cm_1[3] * Fp3cm_1[3]);
+    double mucm_1 =
+      (Fp3cm_1[1] * p1_cm[1] + Fp3cm_1[2] * p1_cm[2] + Fp3cm_1[3] * p1_cm[3]) /
+      (p1_tot_cm * p3cm_tot_1); // good until here
+    if (std::abs(mucm_1) > 1.0) {
+      mucm_1 = std::copysign(1.0, mucm_1);
+    }
+    // double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
+    // pdfs_cm.push_back(pdf1cm);
     mu_cm.push_back(mucm_1);
 
-    double mucm03_1 = ( Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-    
-    
-    if (std::abs(mucm03_1) > 1.0)
-   { mucm03_1 =std::copysign(1.0, mucm03_1);}
-    double sincm1 = std::sqrt(1-mucm03_1*mucm03_1); // if this is zero derivative is inf so pdf is 0
-    double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1 ;
-    double derivative1 =  gamma*(1+q*mucm03_1)*(sin_ratio1*sin_ratio1*sin_ratio1) ;
-    if (sin_lab_sq < approx_tol)
-      {
-          derivative1 =  ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) * ( (cos_lab) / (gamma*mucm03_1*(1+q*mucm03_1)) ) ;
-      }
-    Js.push_back(derivative1);
-    //double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
-    //double pdf1lab = pdf1cm/std::abs(derivative1);
-    //std::cout << "Fp3cm_1[0] -m3 "<< Fp3cm_1[0] - m3 <<std::endl;
-    //std::cout << "cos_lab  "<< cos_lab <<std::endl;
-    //std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
-    //std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
-    //std::cout << "derivative1 PAPER  "<< (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
+    double mucm03_1 =
+      (Fp3cm_1[1] * p_cm.x + Fp3cm_1[2] * p_cm.y + Fp3cm_1[3] * p_cm.z) /
+      (p_tot_cm * p3cm_tot_1);
 
-    Particle ghost_particle=Particle();
-    ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
+    if (std::abs(mucm03_1) > 1.0) {
+      mucm03_1 = std::copysign(1.0, mucm03_1);
+    }
+    double sincm1 = std::sqrt(
+      1 - mucm03_1 * mucm03_1); // if this is zero derivative is inf so pdf is 0
+    double sin_ratio1 = std::sqrt(sin_lab_sq) / sincm1;
+    double derivative1 =
+      gamma * (1 + q * mucm03_1) * (sin_ratio1 * sin_ratio1 * sin_ratio1);
+    if (sin_lab_sq < approx_tol) {
+      derivative1 = ((cos_lab) / (gamma * mucm03_1 * (1 + q * mucm03_1))) *
+                    ((cos_lab) / (gamma * mucm03_1 * (1 + q * mucm03_1)));
+    }
+    Js.push_back(derivative1);
+    // double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
+    // double pdf1lab = pdf1cm/std::abs(derivative1);
+    // std::cout << "Fp3cm_1[0] -m3 "<< Fp3cm_1[0] - m3 <<std::endl;
+    // std::cout << "cos_lab  "<< cos_lab <<std::endl;
+    // std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
+    // std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
+    // std::cout << "derivative1 PAPER  "<<
+    // (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
+
+    Particle ghost_particle = Particle();
+    ghost_particle.initilze_ghost_particle(p, u_lab_unit, E3k_1);
     ghost_particles.push_back(ghost_particle);
 
     if (true) //((cond < 1) && (theta < std::asin(cond)))
     {
       // second solution
-      
-      p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
-      if(p3_tot_2<0)
-      return;
-      p3_2 = u_lab_unit*p3_tot_2;
-      double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
-      E3k_2 = (E3_tot_2 -m3 )*1e6; 
+
+      p3_tot_2 = ((M_cm * M_cm + m3 * m3 - m4 * m4) * p_tot_cm * cos_lab -
+                   2 * E_cm * std::sqrt(insq)) /
+                 2 / (M_cm * M_cm + p_tot_cm * p_tot_cm * sin_lab_sq);
+      if (p3_tot_2 < 0)
+        return;
+      p3_2 = u_lab_unit * p3_tot_2;
+      double E3_tot_2 = std::sqrt(p3_tot_2 * p3_tot_2 + m3 * m3);
+      E3k_2 = (E3_tot_2 - m3) * 1e6;
       if (p3_tot_2 < 0 || E3k_2 < 0)
         return;
-      double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
-      boostf( A, B2 , Fp3cm_2);
-      double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
-      double mucm_2 = ( Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] + Fp3cm_2[3] * p1_cm[3] ) / (p1_tot_cm * p3cm_tot_2);
-      if (std::abs(mucm_2) > 1)
-      {mucm_2 =std::copysign(1.0, mucm_2);}
-      //double pdf2cm = d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed()); 
-      //pdfs_cm.push_back(pdf2cm);
-      mu_cm.push_back(mucm_2);
-      
-      double mucm03_2 = ( Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z ) / (p_tot_cm * p3cm_tot_1);
-      if (std::abs(mucm03_2) > 1.0)
-      { mucm03_2 =std::copysign(1.0, mucm03_2);}
-      double sincm2 = std::sqrt(1-mucm03_2*mucm03_2); 
-      double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2; 
-      double derivative2 =  gamma*(1+q*mucm03_2)*(sin_ratio2*sin_ratio2*sin_ratio2) ;
-      if (sin_lab_sq < approx_tol)
-      {
-          derivative2 =  ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) * ( (cos_lab) / (gamma*mucm03_2*(1+q*mucm03_2)) ) ;
+      double B2[4] = {E3_tot_2, p3_2.x, p3_2.y, p3_2.z};
+      boostf(A, B2, Fp3cm_2);
+      double p3cm_tot_2 =
+        std::sqrt(Fp3cm_2[1] * Fp3cm_2[1] + Fp3cm_2[2] * Fp3cm_2[2] +
+                  Fp3cm_2[3] * Fp3cm_2[3]);
+      double mucm_2 = (Fp3cm_2[1] * p1_cm[1] + Fp3cm_2[2] * p1_cm[2] +
+                        Fp3cm_2[3] * p1_cm[3]) /
+                      (p1_tot_cm * p3cm_tot_2);
+      if (std::abs(mucm_2) > 1) {
+        mucm_2 = std::copysign(1.0, mucm_2);
       }
-     // std::cout << "Fp3cm_2[0] -m3 "<< Fp3cm_2[0] - m3 <<std::endl;
-     // double pdf2lab = pdf2cm/std::abs(derivative2);
-     // std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
-     // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
-     Js.push_back(derivative2);
-      
-      Particle ghost_particle=Particle();
-      ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_2);
+      // double pdf2cm =
+      // d_->angle().get_pdf(p.E_last(),mucm_2,p.current_seed());
+      // pdfs_cm.push_back(pdf2cm);
+      mu_cm.push_back(mucm_2);
+
+      double mucm03_2 =
+        (Fp3cm_2[1] * p_cm.x + Fp3cm_2[2] * p_cm.y + Fp3cm_2[3] * p_cm.z) /
+        (p_tot_cm * p3cm_tot_1);
+      if (std::abs(mucm03_2) > 1.0) {
+        mucm03_2 = std::copysign(1.0, mucm03_2);
+      }
+      double sincm2 = std::sqrt(1 - mucm03_2 * mucm03_2);
+      double sin_ratio2 = std::sqrt(sin_lab_sq) / sincm2;
+      double derivative2 =
+        gamma * (1 + q * mucm03_2) * (sin_ratio2 * sin_ratio2 * sin_ratio2);
+      if (sin_lab_sq < approx_tol) {
+        derivative2 = ((cos_lab) / (gamma * mucm03_2 * (1 + q * mucm03_2))) *
+                      ((cos_lab) / (gamma * mucm03_2 * (1 + q * mucm03_2)));
+      }
+      // std::cout << "Fp3cm_2[0] -m3 "<< Fp3cm_2[0] - m3 <<std::endl;
+      // double pdf2lab = pdf2cm/std::abs(derivative2);
+      // std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
+      // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
+      Js.push_back(derivative2);
+
+      Particle ghost_particle = Particle();
+      ghost_particle.initilze_ghost_particle(p, u_lab_unit, E3k_2);
       ghost_particles.push_back(ghost_particle);
-      
     }
   }
-
-
 }
-void score_ghost_particle(Particle& ghost_p , double pdf_lab , int i_tally)
+void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally)
 {
-         
-         //std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
-        double myflux;
-        double det_pos[4];
-        get_det_pos(det_pos , i_tally);
-        Direction u_lab {det_pos[0]-ghost_p.r().x,  // towards the detector
-                   det_pos[1]-ghost_p.r().y,
-                   det_pos[2]-ghost_p.r().z};
-        Direction u_lab_unit = u_lab/u_lab.norm(); // normalize
-       double total_distance = u_lab.norm();
-      double R0 = det_pos[3];
-      double total_MFP1 = get_MFP(ghost_p,total_distance);
-      //std::cout << "ghost_xs " << ghost_p.macro_xs().total << std::endl;
-      //std::cout << "ghost_x " << ghost_p.r().x << std::endl;
-      //std::cout << "ghost_y " << ghost_p.r().y << std::endl;
-      //std::cout << "ghost_z " << ghost_p.r().z << std::endl;
 
-      if (total_distance < R0)
-       {
-           if (ghost_p.macro_xs().total == 0)
-           {
-              myflux = (ghost_p.wgt()*pdf_lab) /(2/3*PI*R0*R0); 
-              //std::cout<<"void"<<std::endl;
-           }
-           else
-           {
-            // mutliplying in 1=10000/10000 to avoid float point error
-            myflux = ( 10000 * ghost_p.wgt() * pdf_lab * (1-exp(-ghost_p.macro_xs().total*R0)) )/( 10000 * 2/3 * PI*R0*R0*R0 * ghost_p.macro_xs().total );
-            
-            //std::cout<<"not void"<<std::endl;
-           }
-       }
-        else{
-          myflux = (ghost_p.wgt())*exp(-total_MFP1)/(2*PI*total_distance*total_distance)*pdf_lab;
-        }
+  // std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
+  double myflux;
+  double det_pos[4];
+  get_det_pos(det_pos, i_tally);
+  Direction u_lab {det_pos[0] - ghost_p.r().x, // towards the detector
+    det_pos[1] - ghost_p.r().y, det_pos[2] - ghost_p.r().z};
+  Direction u_lab_unit = u_lab / u_lab.norm(); // normalize
+  double total_distance = u_lab.norm();
+  double R0 = det_pos[3];
+  double total_MFP1 = get_MFP(ghost_p, total_distance);
+  // std::cout << "ghost_xs " << ghost_p.macro_xs().total << std::endl;
+  // std::cout << "ghost_x " << ghost_p.r().x << std::endl;
+  // std::cout << "ghost_y " << ghost_p.r().y << std::endl;
+  // std::cout << "ghost_z " << ghost_p.r().z << std::endl;
 
-        if (std::isnan(myflux) || std::abs(myflux) > 1e10 ) {
+  if (total_distance < R0) {
+    if (ghost_p.macro_xs().total == 0) {
+      myflux = (ghost_p.wgt() * pdf_lab) / (2 / 3 * PI * R0 * R0);
+      // std::cout<<"void"<<std::endl;
+    } else {
+      // mutliplying in 1=10000/10000 to avoid float point error
+      myflux = (10000 * ghost_p.wgt() * pdf_lab *
+                 (1 - exp(-ghost_p.macro_xs().total * R0))) /
+               (10000 * 2 / 3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total);
+
+      // std::cout<<"not void"<<std::endl;
+    }
+  } else {
+    myflux = (ghost_p.wgt()) * exp(-total_MFP1) /
+             (2 * PI * total_distance * total_distance) * pdf_lab;
+  }
+
+  if (std::isnan(myflux) || std::abs(myflux) > 1e10) {
     // Print the values of each term in the expression
     std::cout << "myflux " << myflux << std::endl;
     std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
     std::cout << "pdf_lab: " << pdf_lab << std::endl;
-    std::cout << "1 - exp(-ghost_p.macro_xs().total * R0): " << (1 - std::exp(-ghost_p.macro_xs().total * R0)) << std::endl;
-    std::cout << "2/3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total: " << (2.0/3.0 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total) << std::endl;
+    std::cout << "1 - exp(-ghost_p.macro_xs().total * R0): "
+              << (1 - std::exp(-ghost_p.macro_xs().total * R0)) << std::endl;
+    std::cout << "2/3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total: "
+              << (2.0 / 3.0 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total)
+              << std::endl;
 
     // Cause a segmentation fault to crash the program
     int* ptr = nullptr;
-    *ptr = 42;  // This will trigger a segmentation fault
-}
+    *ptr = 42; // This will trigger a segmentation fault
+  }
 
-
-
-
-          if (myflux < 0) {
+  if (myflux < 0) {
     std::cout << "myflux: " << myflux << std::endl;
     std::cout << "ghost_p.event_mt()" << ghost_p.event_mt() << std::endl;
     fatal_error("negetive flux");
-}
-      if (ghost_p.type() != ParticleType::neutron) {myflux = 0;  
-     }
-    const Tally& tally {*model::tallies[i_tally]};
-    // Initialize an iterator over valid filter bin combinations.  If there are
-    // no valid combinations, use a continue statement to ensure we skip the
-    // assume_separate break below.
-    auto filter_iter = FilterBinIter(tally, ghost_p);
-    auto end = FilterBinIter(tally, true, &ghost_p.filter_matches());
-    if (filter_iter == end)
-      return;
+  }
+  if (ghost_p.type() != ParticleType::neutron) {
+    myflux = 0;
+  }
+  const Tally& tally {*model::tallies[i_tally]};
+  // Initialize an iterator over valid filter bin combinations.  If there are
+  // no valid combinations, use a continue statement to ensure we skip the
+  // assume_separate break below.
+  auto filter_iter = FilterBinIter(tally, ghost_p);
+  auto end = FilterBinIter(tally, true, &ghost_p.filter_matches());
+  if (filter_iter == end)
+    return;
 
-    // Loop over filter bins.
-      
+  // Loop over filter bins.
 
-    for (; filter_iter != end; ++filter_iter) {
-      auto filter_index = filter_iter.index_;
-      auto filter_weight = filter_iter.weight_;
+  for (; filter_iter != end; ++filter_iter) {
+    auto filter_index = filter_iter.index_;
+    auto filter_weight = filter_iter.weight_;
 
-      // Loop over nuclide bins.
-      for (auto i = 0; i < tally.nuclides_.size(); ++i) {
-        auto i_nuclide = tally.nuclides_[i];
+    // Loop over nuclide bins.
+    for (auto i = 0; i < tally.nuclides_.size(); ++i) {
+      auto i_nuclide = tally.nuclides_[i];
 
-        double atom_density = 0.;
-        if (i_nuclide >= 0) {
-          auto j =
-            model::materials[ghost_p.material()]->mat_nuclide_index_[i_nuclide];
-          if (j == C_NONE)
-            continue;
-          atom_density = model::materials[ghost_p.material()]->atom_density_(j);
-        }
-        // TODO: consider replacing this "if" with pointers or templates
-        if (settings::run_CE) {
-          score_general_ce_nonanalog(ghost_p, i_tally, i * tally.scores_.size(),
-            filter_index, filter_weight, i_nuclide, atom_density, myflux);
-        } else {
-          fatal_error("multi group not implemnted for point tally");
-        }
+      double atom_density = 0.;
+      if (i_nuclide >= 0) {
+        auto j =
+          model::materials[ghost_p.material()]->mat_nuclide_index_[i_nuclide];
+        if (j == C_NONE)
+          continue;
+        atom_density = model::materials[ghost_p.material()]->atom_density_(j);
+      }
+      // TODO: consider replacing this "if" with pointers or templates
+      if (settings::run_CE) {
+        score_general_ce_nonanalog(ghost_p, i_tally, i * tally.scores_.size(),
+          filter_index, filter_weight, i_nuclide, atom_density, myflux);
+      } else {
+        fatal_error("multi group not implemnted for point tally");
       }
     }
+  }
 
-    // If the user has specified that we can assume all tallies are spatially
-    // separate, this implies that once a tally has been scored to, we needn't
-    // check the others. This cuts down on overhead when there are many
-    // tallies specified
-    if (settings::assume_separate)
-      return;
+  // If the user has specified that we can assume all tallies are spatially
+  // separate, this implies that once a tally has been scored to, we needn't
+  // check the others. This cuts down on overhead when there are many
+  // tallies specified
+  if (settings::assume_separate)
+    return;
 
   // Reset all the filter matches for the next tally event.
   for (auto& match : ghost_p.filter_matches())
     match.bins_present_ = false;
-
-
 }
 
 void score_pulse_height_tally(Particle& p, const vector<int>& tallies)

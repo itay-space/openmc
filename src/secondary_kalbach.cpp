@@ -9,13 +9,13 @@
 #include "xtensor/xview.hpp"
 
 #include "openmc/hdf5_interface.h"
+#include "openmc/nuclide.h"
+#include "openmc/particle.h"
 #include "openmc/random_dist.h"
 #include "openmc/random_lcg.h"
 #include "openmc/search.h"
-#include "openmc/vector.h"
-#include "openmc/particle.h"
-#include "openmc/nuclide.h"
 #include "openmc/tallies/tally_scoring.h"
+#include "openmc/vector.h"
 
 namespace openmc {
 
@@ -240,14 +240,16 @@ void KalbachMann::sample(
     mu = std::log(r1 * std::exp(km_a) + (1.0 - r1) * std::exp(-km_a)) / km_a;
   }
 }
-void KalbachMann::get_pdf(
- double det_pos[4],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
+void KalbachMann::get_pdf(double det_pos[4], double E_in, double& E_out,
+  uint64_t* seed, Particle& p, std::vector<double>& mu_cm,
+  std::vector<double>& Js, std::vector<Particle>& ghost_particles,
+  std::vector<double>& pdfs_lab) const
 {
   // Find energy bin and calculate interpolation factor -- if the energy is
   // outside the range of the tabulated energies, choose the first or last bins
   const auto& nuc {data::nuclides[p.event_nuclide()]};
 
-  //double E_out;
+  // double E_out;
   auto n_energy_in = energy_.size();
   int i;
   double r;
@@ -318,11 +320,12 @@ void KalbachMann::get_pdf(
     } else {
       E_out = E_l_k;
     }
-   //  std::cout << " Histogram interpolation" <<std::endl;
+    //  std::cout << " Histogram interpolation" <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k];
     km_a = distribution_[l].a[k];
-    //std::cout <<"Histo " << " km_r " <<  km_r << " km_a " <<  km_a << std::endl;
+    // std::cout <<"Histo " << " km_r " <<  km_r << " km_a " <<  km_a <<
+    // std::endl;
 
   } else {
     // Linear-linear interpolation
@@ -339,7 +342,7 @@ void KalbachMann::get_pdf(
           p_l_k) /
           frac;
     }
- //  std::cout << " Linear-linear interpolation " <<std::endl;
+    //  std::cout << " Linear-linear interpolation " <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k] +
            (E_out - E_l_k) / (E_l_k1 - E_l_k) *
@@ -349,8 +352,7 @@ void KalbachMann::get_pdf(
              (distribution_[l].a[k + 1] - distribution_[l].a[k]);
   }
 
-
-// Now interpolate between incident energy bins i and i + 1
+  // Now interpolate between incident energy bins i and i + 1
   if (k >= n_discrete) {
     if (l == i) {
       E_out = E_1 + (E_out - E_i_1) * (E_K - E_1) / (E_i_K - E_i_1);
@@ -359,29 +361,30 @@ void KalbachMann::get_pdf(
     }
   }
 
-  get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
-  //std::cout << " sent to pdf_elastic from kalbach, E3_out_cm  " << E_out/1e6 <<std::endl;
-  //std::cout << " mu_cm" << mu_cm[0] <<std::endl;
-  //std::cout << "ghost_particles[0].E() " << ghost_particles[0].E() <<std::endl;
-   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
-        // Assuming Js.size() is the same as mu_cm.size()
-        double mu_c = mu_cm[i];
-        double derivative = Js[i];
-        double pdf_cm = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mu_c) + km_r * std::sinh(km_a * mu_c)); // center of mass
-        pdfs_lab.push_back(pdf_cm/std::abs(derivative));
-    }
-  
-  //std::cout << " my E out in KM  " << E_out <<std::endl;
-  
-  // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
-   //double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) + km_r * std::sinh(km_a * mymu)); // center of mass
-   //return pdf_mu;
+  get_pdf_to_point_elastic(det_pos, p, mu_cm, Js, ghost_particles, E_out / 1e6);
+  // std::cout << " sent to pdf_elastic from kalbach, E3_out_cm  " << E_out/1e6
+  // <<std::endl; std::cout << " mu_cm" << mu_cm[0] <<std::endl; std::cout <<
+  // "ghost_particles[0].E() " << ghost_particles[0].E() <<std::endl;
+  for (std::size_t i = 0; i < mu_cm.size(); ++i) {
+    // Assuming Js.size() is the same as mu_cm.size()
+    double mu_c = mu_cm[i];
+    double derivative = Js[i];
+    double pdf_cm = km_a / (2 * std::sinh(km_a)) *
+                    (std::cosh(km_a * mu_c) +
+                      km_r * std::sinh(km_a * mu_c)); // center of mass
+    pdfs_lab.push_back(pdf_cm / std::abs(derivative));
+  }
 
-const auto& rx {nuc->reactions_[p.event_index_mt()]};
-    if (!rx->scatter_in_cm_)
-   {
-   fatal_error("didn't implement lab");
-   }
+  // std::cout << " my E out in KM  " << E_out <<std::endl;
+
+  // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
+  // double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) +
+  // km_r * std::sinh(km_a * mymu)); // center of mass return pdf_mu;
+
+  const auto& rx {nuc->reactions_[p.event_index_mt()]};
+  if (!rx->scatter_in_cm_) {
+    fatal_error("didn't implement lab");
+  }
 }
 
 } // namespace openmc

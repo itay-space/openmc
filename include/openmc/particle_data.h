@@ -279,10 +279,10 @@ private:
   double wgt_last_ {1.0};   //!< pre-collision particle weight
 
   // What event took place
-  bool fission_ {false};  //!< did particle cause implicit fission
-  TallyEvent event_;      //!< scatter, absorption
-  int event_nuclide_;     //!< index in nuclides array
-  int event_mt_;          //!< reaction MT
+  bool fission_ {false}; //!< did particle cause implicit fission
+  TallyEvent event_;     //!< scatter, absorption
+  int event_nuclide_;    //!< index in nuclides array
+  int event_mt_;         //!< reaction MT
   int event_index_mt_;
   int delayed_group_ {0}; //!< delayed group
   Direction v_t_;

@@ -85,8 +85,8 @@ double Particle::getMass() const
   return mass;
 }
 
-
-void Particle::initilze_ghost_particle(Particle& p,Direction u_new, double E_new)
+void Particle::initilze_ghost_particle(
+  Particle& p, Direction u_new, double E_new)
 {
   clear();
   surface() = 0;
@@ -103,14 +103,15 @@ void Particle::initilze_ghost_particle(Particle& p,Direction u_new, double E_new
   r_last() = p.r();
   u() = u_new;
   u_last() = u_new;
-  //u_last() = p.u_last();
-  E() = E_new;  //settings::run_CE ? p.E_last() : p.g_last();
+  // u_last() = p.u_last();
+  E() = E_new; // settings::run_CE ? p.E_last() : p.g_last();
   E_last() = E_new;
   time() = p.time_last();
   time_last() = p.time_last();
 }
 
-void Particle::initilze_ghost_particle_from_source(const SourceSite* src , Direction u_new)
+void Particle::initilze_ghost_particle_from_source(
+  const SourceSite* src, Direction u_new)
 {
   // Reset some attributes
   clear();
@@ -141,17 +142,13 @@ void Particle::initilze_ghost_particle_from_source(const SourceSite* src , Direc
   E_last() = E();
   time() = src->time;
   time_last() = src->time;
-  
 
-  //fmt::print("==============================particle created==============================\n");
-  //fmt::print("u = {0} , {1} , {2}\n",u().x,u().y,u().z);
-  //fmt::print("u_last = {0} , {1} , {2}\n",u_last().x,u_last().y,u_last().z);
-  //fmt::print("pos = {0} , {1} , {2}\n",r().x,r().y,r().z);
-
+  // fmt::print("==============================particle
+  // created==============================\n"); fmt::print("u = {0} , {1} ,
+  // {2}\n",u().x,u().y,u().z); fmt::print("u_last = {0} , {1} ,
+  // {2}\n",u_last().x,u_last().y,u_last().z); fmt::print("pos = {0} , {1} ,
+  // {2}\n",r().x,r().y,r().z);
 }
-
-
-
 
 void Particle::move_distance(double length)
 {
@@ -214,14 +211,13 @@ void Particle::from_source(const SourceSite* src)
   time() = src->time;
   time_last() = src->time;
   if (!model::active_point_tallies.empty())
-  score_point_tally_from_source(src);
-  
+    score_point_tally_from_source(src);
 
-  //fmt::print("==============================particle created==============================\n");
-  //fmt::print("u = {0} , {1} , {2}\n",u().x,u().y,u().z);
-  //fmt::print("u_last = {0} , {1} , {2}\n",u_last().x,u_last().y,u_last().z);
-  //fmt::print("pos = {0} , {1} , {2}\n",r().x,r().y,r().z);
-
+  // fmt::print("==============================particle
+  // created==============================\n"); fmt::print("u = {0} , {1} ,
+  // {2}\n",u().x,u().y,u().z); fmt::print("u_last = {0} , {1} ,
+  // {2}\n",u_last().x,u_last().y,u_last().z); fmt::print("pos = {0} , {1} ,
+  // {2}\n",r().x,r().y,r().z);
 }
 
 void Particle::event_calculate_xs()
@@ -411,7 +407,8 @@ void Particle::event_collide()
   if ((this)->E_last()*1e8 < 10)
   {
   std::cout << "p->E_last()  "<< (this)->E_last() <<std::endl;
-  std::cout << "p->r()"<< this->r().x<<" "<<this->r().y<<" "<<this->r().z<<" "<<std::endl;
+  std::cout << "p->r()"<< this->r().x<<" "<<this->r().y<<" "<<this->r().z<<"
+  "<<std::endl;
   }
   */
 

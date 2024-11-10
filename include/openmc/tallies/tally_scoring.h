@@ -74,15 +74,19 @@ void score_collision_tally(Particle& p);
 //
 //! \param p The particle being tracked
 void score_point_tally(Particle& p);
-void get_det_pos(double (&det_pos)[4] , int i_tally);
+void get_det_pos(double (&det_pos)[4], int i_tally);
 void score_point_tally_from_source(const SourceSite* src);
-double get_MFP(Particle& ghost_particle , double total_distance);
-void get_pdf_to_point_elastic(double det_pos[4] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles , double E3k_cm_given = -1);
-void get_pdf_to_point_inelastic(double det_pos[4] ,Particle &p ,std::vector<double> &mu_cm , std::vector<double> &Js,std::vector<Particle> &ghost_particles  , double E3_cm);
-void get_mu_cm_inelastic(double det_pos[4] , double E_out,Particle &p);
-void score_ghost_particle(Particle& ghost_p , double pdf_lab, int i_tally);
+double get_MFP(Particle& ghost_particle, double total_distance);
+void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
+  std::vector<double>& mu_cm, std::vector<double>& Js,
+  std::vector<Particle>& ghost_particles, double E3k_cm_given = -1);
+void get_pdf_to_point_inelastic(double det_pos[4], Particle& p,
+  std::vector<double>& mu_cm, std::vector<double>& Js,
+  std::vector<Particle>& ghost_particles, double E3_cm);
+void get_mu_cm_inelastic(double det_pos[4], double E_out, Particle& p);
+void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally);
 //
-void boostf( double A[4], double B[4], double X[4]);
+void boostf(double A[4], double B[4], double X[4]);
 //! Analog tallies are triggered at every collision, not every event.
 //
 //! \param p The particle being tracked
@@ -93,7 +97,6 @@ void score_analog_tally_ce(Particle& p);
 void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
   int filter_index, double filter_weight, int i_nuclide, double atom_density,
   double flux);
-
 
 //! Analog tallies are triggered at every collision, not every event.
 //

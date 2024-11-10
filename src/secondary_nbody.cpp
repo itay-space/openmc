@@ -5,9 +5,9 @@
 #include "openmc/constants.h"
 #include "openmc/hdf5_interface.h"
 #include "openmc/math_functions.h"
+#include "openmc/nuclide.h"
 #include "openmc/random_dist.h"
 #include "openmc/random_lcg.h"
-#include "openmc/nuclide.h"
 #include "openmc/tallies/tally_scoring.h"
 
 namespace openmc {
@@ -69,12 +69,13 @@ void NBodyPhaseSpace::sample(
   E_out = E_max * v;
 }
 
-void NBodyPhaseSpace::get_pdf(
- double det_pos[4],double E_in,double& E_out, uint64_t* seed , Particle &p,std::vector<double> &mu_cm , std::vector<double> &Js ,std::vector<Particle> &ghost_particles , std::vector<double> &pdfs_lab) const
+void NBodyPhaseSpace::get_pdf(double det_pos[4], double E_in, double& E_out,
+  uint64_t* seed, Particle& p, std::vector<double>& mu_cm,
+  std::vector<double>& Js, std::vector<Particle>& ghost_particles,
+  std::vector<double>& pdfs_lab) const
 {
-// By definition, the distribution of the angle is isotropic for an N-body
+  // By definition, the distribution of the angle is isotropic for an N-body
   // phase space distribution
- 
 
   // Determine E_max parameter
   double Ap = mass_ratio_;
@@ -112,26 +113,21 @@ void NBodyPhaseSpace::get_pdf(
   // Now determine v and E_out
   double v = x / (x + y);
   E_out = E_max * v;
-//std::cout << "E_out_cm in nbody calling elastic" << E_out << std::endl;
-  get_pdf_to_point_elastic(det_pos , p ,mu_cm ,Js, ghost_particles,E_out/1e6);
-   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
-        // Assuming Js.size() is the same as mu_cm.size()
-        double mu_c = mu_cm[i];
-        double derivative = Js[i];
-        double pdf_cm = 0.5;
-        pdfs_lab.push_back(pdf_cm/std::abs(derivative));
-    }
- 
-const auto& nuc {data::nuclides[p.event_nuclide()]};
-const auto& rx {nuc->reactions_[p.event_index_mt()]};
-   if (!rx->scatter_in_cm_)
-   {
-   fatal_error("didn't implement lab");
-   }
+  // std::cout << "E_out_cm in nbody calling elastic" << E_out << std::endl;
+  get_pdf_to_point_elastic(det_pos, p, mu_cm, Js, ghost_particles, E_out / 1e6);
+  for (std::size_t i = 0; i < mu_cm.size(); ++i) {
+    // Assuming Js.size() is the same as mu_cm.size()
+    double mu_c = mu_cm[i];
+    double derivative = Js[i];
+    double pdf_cm = 0.5;
+    pdfs_lab.push_back(pdf_cm / std::abs(derivative));
+  }
 
-
+  const auto& nuc {data::nuclides[p.event_nuclide()]};
+  const auto& rx {nuc->reactions_[p.event_index_mt()]};
+  if (!rx->scatter_in_cm_) {
+    fatal_error("didn't implement lab");
+  }
 }
-
-
 
 } // namespace openmc
