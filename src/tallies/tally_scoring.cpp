@@ -2762,7 +2762,7 @@ double get_MFP(Particle &ghost_particle , double total_distance)
     ghost_particle.boundary() = distance_to_boundary(ghost_particle);
     double advance_distance = ghost_particle.boundary().distance;
     
-    while(advance_distance<remaining_distance) // adavance to next boundary
+    while(advance_distance<remaining_distance) // Advance to next boundary
     {
       total_MFP += advance_distance*ghost_particle.macro_xs().total;
         //Advance particle in space and time
@@ -2777,11 +2777,11 @@ double get_MFP(Particle &ghost_particle , double total_distance)
         advance_distance = ghost_particle.boundary().distance;
         //std::cout << "advance_distance " << advance_distance << std::endl;
     }
-    total_MFP += remaining_distance*ghost_particle.macro_xs().total; // adavance to next boundary
+    total_MFP += remaining_distance*ghost_particle.macro_xs().total; // advance to next boundary
     for (int j = 0; j < ghost_particle.n_coord(); ++j) {
         ghost_particle.coord(j).r += remaining_distance * ghost_particle.coord(j).u;
     }
-    ghost_particle.time() += remaining_distance / ghost_particle.speed(); //not reletevistic
+    ghost_particle.time() += remaining_distance / ghost_particle.speed(); 
     return total_MFP;
 
 }
@@ -2852,14 +2852,16 @@ void get_pdf_to_point_elastic(double det_pos[4] ,Particle &p ,std::vector<double
   //auto d_ = dynamic_cast<UncorrelatedAngleEnergy*>(d.get());
   
   double q = (p_tot_cm / E_cm) * (E3_cm / p3_tot_cm);
-  double approx_tol = 0.01;
+  double approx_tol = 0.0001;
 
 
-  if ( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
+  if (insq>=0) //( (cond > 1) || ( (cond < 1) && (theta < std::asin(cond)) ) )
   {
     // first solution
     
     p3_tot_1 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab + 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
+    if (p3_tot_1 <=0)
+    return;
     p3_1 = u_lab_unit*p3_tot_1;
     double E3_tot_1 = std::sqrt(p3_tot_1*p3_tot_1 + m3*m3);
    // std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
@@ -2900,14 +2902,18 @@ void get_pdf_to_point_elastic(double det_pos[4] ,Particle &p ,std::vector<double
     ghost_particle.initilze_ghost_particle(p,u_lab_unit,E3k_1);
     ghost_particles.push_back(ghost_particle);
 
-    if ((cond < 1) && (theta < std::asin(cond)))
+    if (true) //((cond < 1) && (theta < std::asin(cond)))
     {
       // second solution
       
       p3_tot_2 = ( (M_cm*M_cm + m3*m3 - m4*m4)*p_tot_cm*cos_lab - 2*E_cm*std::sqrt(insq) ) /2/(M_cm*M_cm+p_tot_cm*p_tot_cm*sin_lab_sq);
+      if(p3_tot_2<0)
+      return;
       p3_2 = u_lab_unit*p3_tot_2;
       double E3_tot_2 = std::sqrt(p3_tot_2*p3_tot_2 + m3*m3);
       E3k_2 = (E3_tot_2 -m3 )*1e6; 
+      if (p3_tot_2 < 0 || E3k_2 < 0)
+        return;
       double B2[4] = {E3_tot_2 , p3_2.x,p3_2.y,p3_2.z};
       boostf( A, B2 , Fp3cm_2);
       double p3cm_tot_2 = std::sqrt(Fp3cm_2[1]*Fp3cm_2[1]+Fp3cm_2[2]*Fp3cm_2[2]+Fp3cm_2[3]*Fp3cm_2[3]);
