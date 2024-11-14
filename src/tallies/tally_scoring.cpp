@@ -948,17 +948,21 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
 
       if (i_nuclide >= 0) {
         const auto& micro = p.photon_xs(i_nuclide);
-        double xs = (score_bin == COHERENT)        ? micro.coherent
-                    : (score_bin == INCOHERENT)    ? micro.incoherent
-                    : (score_bin == PHOTOELECTRIC) ? micro.photoelectric
-                                                   : micro.pair_production;
+        double xs = (score_bin == COHERENT)
+                      ? micro.coherent
+                      : (score_bin == INCOHERENT) ? micro.incoherent
+                                                  : (score_bin == PHOTOELECTRIC)
+                                                      ? micro.photoelectric
+                                                      : micro.pair_production;
         score = xs * atom_density * flux;
       } else {
-        double xs = (score_bin == COHERENT)     ? p.macro_xs().coherent
-                    : (score_bin == INCOHERENT) ? p.macro_xs().incoherent
-                    : (score_bin == PHOTOELECTRIC)
-                      ? p.macro_xs().photoelectric
-                      : p.macro_xs().pair_production;
+        double xs = (score_bin == COHERENT)
+                      ? p.macro_xs().coherent
+                      : (score_bin == INCOHERENT)
+                          ? p.macro_xs().incoherent
+                          : (score_bin == PHOTOELECTRIC)
+                              ? p.macro_xs().photoelectric
+                              : p.macro_xs().pair_production;
         score = xs * flux;
       }
       break;
@@ -2658,7 +2662,7 @@ void score_point_tally_from_source(const SourceSite* src)
             double total_distance = u_lab.norm();
             pdf_mu_det =
               (2 * PI * total_distance * total_distance); // to cancel the Rs
-          } // pdf is not defined for discrete case
+          }    // pdf is not defined for discrete case
         } else // unexpected type
         {
           fatal_error("unexpected type");
