@@ -15,6 +15,7 @@
 #include "openmc/error.h"
 #include "openmc/file_utils.h"
 #include "openmc/hdf5_interface.h"
+#include "openmc/mcpl_interface.h"
 #include "openmc/mesh.h"
 #include "openmc/message_passing.h"
 #include "openmc/mgxs_interface.h"
@@ -366,11 +367,27 @@ void restart_set_keff()
 
 void load_state_point()
 {
-  // Write message
-  write_message("Loading state point " + settings::path_statepoint + "...", 5);
+  write_message(
+    fmt::format("Loading state point {}...", settings::path_statepoint_c), 5);
+  openmc_statepoint_load(settings::path_statepoint.c_str());
+}
 
+void statepoint_version_check(hid_t file_id)
+{
+  // Read revision number for state point file and make sure it matches with
+  // current version
+  array<int, 2> version_array;
+  read_attribute(file_id, "version", version_array);
+  if (version_array != VERSION_STATEPOINT) {
+    fatal_error(
+      "State point version does not match current version in OpenMC.");
+  }
+}
+
+extern "C" int openmc_statepoint_load(const char* filename)
+{
   // Open file for reading
-  hid_t file_id = file_open(settings::path_statepoint.c_str(), 'r', true);
+  hid_t file_id = file_open(filename, 'r', true);
 
   // Read filetype
   std::string word;
@@ -379,14 +396,7 @@ void load_state_point()
     fatal_error("OpenMC tried to restart from a non-statepoint file.");
   }
 
-  // Read revision number for state point file and make sure it matches with
-  // current version
-  array<int, 2> array;
-  read_attribute(file_id, "version", array);
-  if (array != VERSION_STATEPOINT) {
-    fatal_error(
-      "State point version does not match current version in OpenMC.");
-  }
+  statepoint_version_check(file_id);
 
   // Read and overwrite random number seed
   int64_t seed;
@@ -423,9 +433,10 @@ void load_state_point()
   read_dataset(file_id, "current_batch", simulation::restart_batch);
 
   if (simulation::restart_batch >= settings::n_max_batches) {
-    fatal_error(fmt::format(
-      "The number of batches specified for simulation ({}) is smaller"
-      " than the number of batches in the restart statepoint file ({})",
+    warning(fmt::format(
+      "The number of batches specified for simulation ({}) is smaller "
+      "than or equal to the number of batches in the restart statepoint file "
+      "({})",
       settings::n_max_batches, simulation::restart_batch));
   }
 
@@ -491,7 +502,6 @@ void load_state_point()
         if (internal) {
           tally->writable_ = false;
         } else {
-
           auto& results = tally->results_;
           read_tally_results(tally_group, results.shape()[0],
             results.shape()[1], results.data());
@@ -499,7 +509,6 @@ void load_state_point()
           close_group(tally_group);
         }
       }
-
       close_group(tallies_group);
     }
   }
@@ -527,6 +536,8 @@ void load_state_point()
 
   // Close file
   file_close(file_id);
+
+  return 0;
 }
 
 hid_t h5banktype()
@@ -560,8 +571,23 @@ hid_t h5banktype()
   return banktype;
 }
 
-void write_source_point(const char* filename, gsl::span<SourceSite> source_bank,
-  const vector<int64_t>& bank_index)
+void write_source_point(std::string filename, gsl::span<SourceSite> source_bank,
+  const vector<int64_t>& bank_index, bool use_mcpl)
+{
+  std::string ext = use_mcpl ? "mcpl" : "h5";
+  write_message("Creating source file {}.{} with {} particles ...", filename,
+    ext, source_bank.size(), 5);
+
+  // Dispatch to appropriate function based on file type
+  if (use_mcpl) {
+    write_mcpl_source_point(filename.c_str(), source_bank, bank_index);
+  } else {
+    write_h5_source_point(filename.c_str(), source_bank, bank_index);
+  }
+}
+
+void write_h5_source_point(const char* filename,
+  gsl::span<SourceSite> source_bank, const vector<int64_t>& bank_index)
 {
   // When using parallel HDF5, the file is written to collectively by all
   // processes. With MPI-only, the file is opened and written by the master

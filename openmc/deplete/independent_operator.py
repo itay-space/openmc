@@ -8,7 +8,6 @@ transport solver by using user-provided one-group cross sections.
 from __future__ import annotations
 from collections.abc import Iterable
 import copy
-from typing import List, Set
 
 import numpy as np
 from uncertainties import ufloat
@@ -45,7 +44,7 @@ class IndependentOperator(OpenMCOperator):
 
     Parameters
     ----------
-    materials : openmc.Materials
+    materials : iterable of openmc.Material
         Materials to deplete.
     fluxes : list of numpy.ndarray
         Flux in each group in [n-cm/src] for each domain
@@ -128,8 +127,16 @@ class IndependentOperator(OpenMCOperator):
                  reduce_chain_level=None,
                  fission_yield_opts=None):
         # Validate micro-xs parameters
-        check_type('materials', materials, openmc.Materials)
+        check_type('materials', materials, Iterable, openmc.Material)
         check_type('micros', micros, Iterable, MicroXS)
+        materials = openmc.Materials(materials)
+
+        if not (len(fluxes) == len(micros) == len(materials)):
+            msg = (f'The length of fluxes ({len(fluxes)}) should be equal to '
+                   f'the length of micros ({len(micros)}) and the length of '
+                   f'materials ({len(materials)}).')
+            raise ValueError(msg)
+
         if keff is not None:
             check_type('keff', keff, tuple, float)
             keff = ufloat(*keff)
@@ -233,13 +240,11 @@ class IndependentOperator(OpenMCOperator):
                    reduce_chain_level=reduce_chain_level,
                    fission_yield_opts=fission_yield_opts)
 
-
     @staticmethod
     def _consolidate_nuclides_to_material(nuclides, nuc_units, volume):
         """Puts nuclide list into an openmc.Materials object.
 
         """
-        openmc.reset_auto_ids()
         mat = openmc.Material()
         if nuc_units == 'atom/b-cm':
             for nuc, conc in nuclides.items():
@@ -262,7 +267,6 @@ class IndependentOperator(OpenMCOperator):
         self.prev_res[-1].transfer_volumes(model)
         self.materials = model.materials
 
-
         # Store previous results in operator
         # Distribute reaction rates according to those tracked
         # on this process
@@ -274,8 +278,7 @@ class IndependentOperator(OpenMCOperator):
                 new_res = res_obj.distribute(self.local_mats, mat_indexes)
                 self.prev_res.append(new_res)
 
-
-    def _get_nuclides_with_data(self, cross_sections: List[MicroXS]) -> Set[str]:
+    def _get_nuclides_with_data(self, cross_sections: list[MicroXS]) -> set[str]:
         """Finds nuclides with cross section data"""
         return set(cross_sections[0].nuclides)
 
@@ -403,6 +406,12 @@ class IndependentOperator(OpenMCOperator):
         """
 
         self._update_materials_and_nuclides(vec)
+
+        # If the source rate is zero, return zero reaction rates
+        if source_rate == 0.0:
+            rates = self.reaction_rates.copy()
+            rates.fill(0.0)
+            return OperatorResult(ufloat(0.0, 0.0), rates)
 
         rates = self._calculate_reaction_rates(source_rate)
         keff = self._keff
