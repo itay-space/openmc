@@ -52,6 +52,7 @@ struct SourceSite {
   ParticleType particle;
   int64_t parent_id;
   int64_t progeny_id;
+  int source_index;
 };
 
 //! State of a particle used for particle track files

@@ -948,21 +948,17 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
 
       if (i_nuclide >= 0) {
         const auto& micro = p.photon_xs(i_nuclide);
-        double xs = (score_bin == COHERENT)
-                      ? micro.coherent
-                      : (score_bin == INCOHERENT) ? micro.incoherent
-                                                  : (score_bin == PHOTOELECTRIC)
-                                                      ? micro.photoelectric
-                                                      : micro.pair_production;
+        double xs = (score_bin == COHERENT)        ? micro.coherent
+                    : (score_bin == INCOHERENT)    ? micro.incoherent
+                    : (score_bin == PHOTOELECTRIC) ? micro.photoelectric
+                                                   : micro.pair_production;
         score = xs * atom_density * flux;
       } else {
-        double xs = (score_bin == COHERENT)
-                      ? p.macro_xs().coherent
-                      : (score_bin == INCOHERENT)
-                          ? p.macro_xs().incoherent
-                          : (score_bin == PHOTOELECTRIC)
-                              ? p.macro_xs().photoelectric
-                              : p.macro_xs().pair_production;
+        double xs = (score_bin == COHERENT)     ? p.macro_xs().coherent
+                    : (score_bin == INCOHERENT) ? p.macro_xs().incoherent
+                    : (score_bin == PHOTOELECTRIC)
+                      ? p.macro_xs().photoelectric
+                      : p.macro_xs().pair_production;
         score = xs * flux;
       }
       break;
@@ -2631,7 +2627,7 @@ void score_point_tally_from_source(const SourceSite* src)
     Direction u_lab_unit = u_lab / u_lab.norm(); // normalize
     // Get the angle distribution
     double pdf_mu_det = 0;
-    Source& mysource = *(model::external_sources[0]);
+    Source& mysource = *(model::external_sources[src->source_index]);
     if (auto* independentSource = dynamic_cast<IndependentSource*>(&mysource))
     // Check if the actual type is IndependentSource
     {
@@ -2673,13 +2669,13 @@ void score_point_tally_from_source(const SourceSite* src)
       // Direction my_u_ref = angleDistribution->u_ref_;
       // fmt::print("uref = {0} , {1} ,
       // {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
-    }
+      Particle ghost_particle = Particle();
+      ghost_particle.initilze_ghost_particle_from_source(src, u_lab_unit);
 
-    Particle ghost_particle = Particle();
-    ghost_particle.initilze_ghost_particle_from_source(src, u_lab_unit);
-    // if (std::isnan(flux)) {std::cout << "flux nan from source "  <<
-    // std::endl;flux=0;}
-    score_ghost_particle(ghost_particle, pdf_mu_det, i_tally);
+      // if (std::isnan(flux)) {std::cout << "flux nan from source "  <<
+      // std::endl;flux=0;}
+      score_ghost_particle(ghost_particle, pdf_mu_det, i_tally);
+    }
   }
 }
 

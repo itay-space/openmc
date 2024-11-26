@@ -635,6 +635,7 @@ SourceSite sample_external_source(uint64_t* seed)
     site.E = data::mg.num_energy_groups_ - site.E - 1.;
   }
   site.ext = true;
+  site.source_index = i;
   return site;
 }
 
