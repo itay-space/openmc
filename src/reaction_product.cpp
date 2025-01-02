@@ -143,34 +143,28 @@ void ReactionProduct::get_pdf(int i_tally, double E_in, double& E_out,
 
   if (CorrelatedAngleEnergy* correlatedAE =
         dynamic_cast<CorrelatedAngleEnergy*>(angleEnergyPtr)) {
-    // std::cout << "Used " << typeid(*correlatedAE).name() << "
-    // implementation." << std::endl;
+
     (*correlatedAE)
       .get_pdf(
         det_pos, E_in, E_out, seed, p, mu_cm, Js, ghost_particles, pdfs_lab);
     // Handle CorrelatedAngleEnergy
   } else if (KalbachMann* kalbachMann =
                dynamic_cast<KalbachMann*>(angleEnergyPtr)) {
-    // std::cout << "Used " << typeid(*kalbachMann).name() << " implementation."
-    // << std::endl;
+
     (*kalbachMann)
       .get_pdf(
         det_pos, E_in, E_out, seed, p, mu_cm, Js, ghost_particles, pdfs_lab);
 
-    // std::cout << " my E_in " << E_in <<std::endl;
-    // std::cout << " my E out " << E_out <<std::endl;
     // Handle KalbachMann
   } else if (NBodyPhaseSpace* nBodyPS =
                dynamic_cast<NBodyPhaseSpace*>(angleEnergyPtr)) {
-    // std::cout << "Used " << typeid(*nBodyPS).name() << " implementation." <<
-    // std::endl;
+
     (*nBodyPS).get_pdf(
       det_pos, E_in, E_out, seed, p, mu_cm, Js, ghost_particles, pdfs_lab);
     // Handle NBodyPhaseSpace
   } else if (UncorrelatedAngleEnergy* uncorrelatedAE =
                dynamic_cast<UncorrelatedAngleEnergy*>(angleEnergyPtr)) {
-    // std::cout << "Used " << typeid(*uncorrelatedAE).name() << "
-    // implementation." << std::endl;
+
     (*uncorrelatedAE)
       .get_pdf(
         det_pos, E_in, E_out, seed, p, mu_cm, Js, ghost_particles, pdfs_lab);

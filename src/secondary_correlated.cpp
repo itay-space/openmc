@@ -410,9 +410,6 @@ void CorrelatedAngleEnergy::get_pdf(double det_pos[4], double E_in,
 
     pdfs_lab.push_back(pdf_mu_lab);
 
-    // std::cout << "E_out_lab " << E_lab << std::endl;
-    // std::cout << "pdf lab" << pdf_mu_lab << std::endl;
-
     // fatal_error("didn't implement lab");
   }
 }

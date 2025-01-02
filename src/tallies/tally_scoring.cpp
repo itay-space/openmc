@@ -977,7 +977,7 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
           // transported individually later
           const auto& bank = p.secondary_bank();
           for (auto it = bank.end() - p.n_bank_second(); it < bank.end();
-            ++it) {
+               ++it) {
             score -= it->E;
           }
 
@@ -2426,16 +2426,6 @@ void score_tracklength_tally(Particle& p, double distance)
 
 void score_collision_tally(Particle& p)
 {
-  if (std::isnan(p.r().x)) {
-    std::cout << "collision pos 1" << p.r().x << " " << p.r().y << " "
-              << p.r().z << " " << std::endl;
-    std::cout << "p.E_last()" << p.E_last() << std::endl;
-  }
-  if (p.E_last() * 1e8 < 10) {
-    std::cout << "collision pos 1.5" << p.r().x << " " << p.r().y << " "
-              << p.r().z << " " << std::endl;
-    std::cout << "p.E_last()" << p.E_last() << std::endl;
-  }
   // Determine the collision estimate of the flux
   double flux = 0.0;
   if (p.type() == ParticleType::neutron || p.type() == ParticleType::photon) {
@@ -2519,10 +2509,8 @@ void score_point_tally(Particle& p)
     return; // absorption or fission or s(a,b)
 
   for (auto i_tally : model::active_point_tallies) {
-    // std::cout<< "i of reaction tally scoring" <<
-    // p.event_index_mt()<<std::endl;
+
     double yield = 1;
-    // std::cout << "mt = " << p.event_mt() <<std::endl;
     col_counter++;
     const auto& nuc {data::nuclides[p.event_nuclide()]};
     const auto& rx {nuc->reactions_[p.event_index_mt()]};
@@ -2535,9 +2523,6 @@ void score_point_tally(Particle& p)
     std::vector<double> pdfs_lab;
     // std::vector<double> fluxes;
     if (std::isnan(p.r().x)) {
-      std::cout << "p.r() 2" << p.r().x << " " << p.r().y << " " << p.r().z
-                << " " << std::endl;
-      std::cout << "p.E_last()  " << p.E_last() << std::endl;
       return; // sometimes the get_pdf function turns p.r() into nan
     }
 
@@ -2556,11 +2541,10 @@ void score_point_tally(Particle& p)
       }
     }
     if (p.event_mt() != 2) { // Inelastic
-      // std::cout << "mt = " << p.event_mt() <<std::endl;
       // make sure v_t is 0
       // copy energy of neutron
       double E_in = p.E_last();
-      // std::cout << "E_in collision " << E_in<<std::endl;
+
       double E_out;
       rx->products_[0].get_pdf(i_tally, E_in, E_out, p.current_seed(), p, mu_cm,
         Js, ghost_particles, pdfs_lab);
@@ -2575,24 +2559,10 @@ void score_point_tally(Particle& p)
       }
     }
 
-    // Assume one point detector
-    // Direction u_lab {det_pos[0]-p.r().x,
-    // det_pos[1]-p.r().y,det_pos[2]-p.r().z}; double total_distance =
-    // u_lab.norm(); collect MFP for solutions and calc fluxes if
-    // (std::isnan(flux1)) {flux1=0;} if (std::isnan(flux2)) {flux2=0;}
-    if (ghost_particles.size() == 0) {
-      // std::cout << "no ghosts were made. mt = " << p.event_mt() <<std::endl;
-    }
-    // std::cout << " ghost_particles.size()" <<ghost_particles.size()
-    // <<std::endl;
-    // starting scoring loop on ghost particles
     for (size_t index = 0; index < ghost_particles.size(); ++index) {
       auto& ghost_p = ghost_particles[index];
       double pdf_lab = pdfs_lab[index];
-      // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
       score_ghost_particle(ghost_p, pdf_lab, i_tally);
-      // std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
-      // std::cout << "E_ghost " << ghost_p.E() <<std::endl;
       // calculate shielding
     } // for loop on ghost particles
   }
@@ -2658,22 +2628,16 @@ void score_point_tally_from_source(const SourceSite* src)
             double total_distance = u_lab.norm();
             pdf_mu_det =
               (2 * PI * total_distance * total_distance); // to cancel the Rs
-          } // pdf is not defined for discrete case
+          }    // pdf is not defined for discrete case
         } else // unexpected type
         {
           fatal_error("unexpected type");
         }
       }
 
-      // std::cout << "pdf_mu_det "  << pdf_mu_det<< std::endl;
-      // Direction my_u_ref = angleDistribution->u_ref_;
-      // fmt::print("uref = {0} , {1} ,
-      // {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
       Particle ghost_particle = Particle();
       ghost_particle.initialize_ghost_particle_from_source(src, u_lab_unit);
 
-      // if (std::isnan(flux)) {std::cout << "flux nan from source "  <<
-      // std::endl;flux=0;}
       score_ghost_particle(ghost_particle, pdf_mu_det, i_tally);
     }
   }
@@ -2704,7 +2668,7 @@ void score_surface_tally(Particle& p, const vector<int>& tallies)
       // for a further scoring function.
       double score = current * filter_weight;
       for (auto score_index = 0; score_index < tally.scores_.size();
-        ++score_index) {
+           ++score_index) {
 #pragma omp atomic
         tally.results_(filter_index, score_index, TallyResult::VALUE) += score;
       }
@@ -2732,16 +2696,13 @@ void boostf(double A[4], double B[4], double X[4])
   int j;
 
   if ((A[0] * A[0] - A[1] * A[1] - A[2] * A[2] - A[3] * A[3]) <= 0) {
-    std::cout << "negative sqrt in boostf" << A[0] << A[1] << A[2] << A[3]
-              << std::endl;
   }
 
   W = sqrt(A[0] * A[0] - A[1] * A[1] - A[2] * A[2] - A[3] * A[3]);
 
   if (W == 0 || W == (-A[0]))
-    std::cout << "divid by 0 in boostf" << std::endl;
 
-  X[0] = (B[0] * A[0] - B[3] * A[3] - B[2] * A[2] - B[1] * A[1]) / W;
+    X[0] = (B[0] * A[0] - B[3] * A[3] - B[2] * A[2] - B[1] * A[1]) / W;
   for (j = 1; j <= 3; j++) {
     X[j] = B[j] - A[j] * (B[0] + X[0]) / (A[0] + W);
   }
@@ -2772,7 +2733,6 @@ double get_MFP(Particle& ghost_particle, double total_distance)
     ghost_particle.event_calculate_xs();
     ghost_particle.boundary() = distance_to_boundary(ghost_particle);
     advance_distance = ghost_particle.boundary().distance;
-    // std::cout << "advance_distance " << advance_distance << std::endl;
   }
   total_MFP += remaining_distance *
                ghost_particle.macro_xs().total; // advance to next boundary
@@ -2802,12 +2762,9 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
     p.E_last() / 1e6 + m1; // total Energy of incoming particle in MeV
   double p1_tot = std::sqrt(
     E1_tot * E1_tot - m1 * m1); // total momenta of incoming particle in MeV
-  // if (p1_tot == 0) {return; std::cout << "p1_tot was zero "<<std::endl;} //
   // without this the get_pdf function turns p.r() into nan
   Direction p1 = p1_tot * p.u_last();    // 3 momentum of incoming particle
   Direction p2 = p.v_t() * m2 / C_LIGHT; // 3 momentum of target in lab
-  // std::cout<< "target_velocity" << p.v_t().x <<" " << p.v_t().y << " " <<
-  // p.v_t().z << " " << std::endl;
   double E2_tot = std::sqrt(p2.norm() * p2.norm() + m2 * m2);
   double E_cm = E1_tot + E2_tot;
   Direction p_cm = p1 + p2;
@@ -2868,7 +2825,6 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
       return;
     p3_1 = u_lab_unit * p3_tot_1;
     double E3_tot_1 = std::sqrt(p3_tot_1 * p3_tot_1 + m3 * m3);
-    // std::cout << "E3_tot_1 "<<E3_tot_1 <<std::endl;
     E3k_1 = (E3_tot_1 - m3) * 1e6; // back to eV
     double B1[4] = {E3_tot_1, p3_1.x, p3_1.y, p3_1.z};
     boostf(A, B1, Fp3cm_1);
@@ -2903,14 +2859,6 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
                     ((cos_lab) / (gamma * mucm03_1 * (1 + q * mucm03_1)));
     }
     Js.push_back(derivative1);
-    // double pdf1cm = d_->angle().get_pdf(p.E_last(),mucm_1,p.current_seed());
-    // double pdf1lab = pdf1cm/std::abs(derivative1);
-    // std::cout << "Fp3cm_1[0] -m3 "<< Fp3cm_1[0] - m3 <<std::endl;
-    // std::cout << "cos_lab  "<< cos_lab <<std::endl;
-    // std::cout << "pdf1lab ITAY:  "<< pdf1lab <<std::endl;
-    // std::cout << "derivative1 ITAY:  "<< derivative1 <<std::endl;
-    // std::cout << "derivative1 PAPER  "<<
-    // (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
 
     Particle ghost_particle = Particle();
     ghost_particle.initialize_ghost_particle(p, u_lab_unit, E3k_1);
@@ -2960,10 +2908,6 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
         derivative2 = ((cos_lab) / (gamma * mucm03_2 * (1 + q * mucm03_2))) *
                       ((cos_lab) / (gamma * mucm03_2 * (1 + q * mucm03_2)));
       }
-      // std::cout << "Fp3cm_2[0] -m3 "<< Fp3cm_2[0] - m3 <<std::endl;
-      // double pdf2lab = pdf2cm/std::abs(derivative2);
-      // std::cout << "pdf2lab ITAY:  "<< pdf2lab <<std::endl;
-      // std::cout << "derivative2 ITAY:  "<< derivative2 <<std::endl;
       Js.push_back(derivative2);
 
       Particle ghost_particle = Particle();
@@ -2975,7 +2919,6 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
 void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally)
 {
 
-  // std::cout << "pdf_lab in score_ghost_particle: " << pdf_lab << std::endl;
   double myflux;
   double det_pos[4];
   get_det_pos(det_pos, i_tally);
@@ -2985,22 +2928,16 @@ void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally)
   double total_distance = u_lab.norm();
   double R0 = det_pos[3];
   double total_MFP1 = get_MFP(ghost_p, total_distance);
-  // std::cout << "ghost_xs " << ghost_p.macro_xs().total << std::endl;
-  // std::cout << "ghost_x " << ghost_p.r().x << std::endl;
-  // std::cout << "ghost_y " << ghost_p.r().y << std::endl;
-  // std::cout << "ghost_z " << ghost_p.r().z << std::endl;
 
   if (total_distance < R0) {
     if (ghost_p.macro_xs().total == 0) {
       myflux = (ghost_p.wgt() * pdf_lab) / (2 / 3 * PI * R0 * R0);
-      // std::cout<<"void"<<std::endl;
+
     } else {
       // mutliplying in 1=10000/10000 to avoid float point error
       myflux = (10000 * ghost_p.wgt() * pdf_lab *
                  (1 - exp(-ghost_p.macro_xs().total * R0))) /
                (10000 * 2 / 3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total);
-
-      // std::cout<<"not void"<<std::endl;
     }
   } else {
     myflux = (ghost_p.wgt()) * exp(-total_MFP1) /
@@ -3008,15 +2945,6 @@ void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally)
   }
 
   if (std::isnan(myflux) || std::abs(myflux) > 1e10) {
-    // Print the values of each term in the expression
-    std::cout << "myflux " << myflux << std::endl;
-    std::cout << "ghost_p.wgt(): " << ghost_p.wgt() << std::endl;
-    std::cout << "pdf_lab: " << pdf_lab << std::endl;
-    std::cout << "1 - exp(-ghost_p.macro_xs().total * R0): "
-              << (1 - std::exp(-ghost_p.macro_xs().total * R0)) << std::endl;
-    std::cout << "2/3 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total: "
-              << (2.0 / 3.0 * PI * R0 * R0 * R0 * ghost_p.macro_xs().total)
-              << std::endl;
 
     // Cause a segmentation fault to crash the program
     int* ptr = nullptr;
@@ -3024,8 +2952,6 @@ void score_ghost_particle(Particle& ghost_p, double pdf_lab, int i_tally)
   }
 
   if (myflux < 0) {
-    std::cout << "myflux: " << myflux << std::endl;
-    std::cout << "ghost_p.event_mt()" << ghost_p.event_mt() << std::endl;
     fatal_error("negetive flux");
   }
   if (ghost_p.type() != ParticleType::neutron) {
@@ -3136,7 +3062,7 @@ void score_pulse_height_tally(Particle& p, const vector<int>& tallies)
 
             // Loop over scores.
             for (auto score_index = 0; score_index < tally.scores_.size();
-              ++score_index) {
+                 ++score_index) {
 #pragma omp atomic
               tally.results_(filter_index, score_index, TallyResult::VALUE) +=
                 filter_weight;

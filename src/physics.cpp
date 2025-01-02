@@ -758,9 +758,7 @@ void elastic_scatter(int i_nuclide, const Reaction& rx, double kT, Particle& p)
     v_t = sample_target_velocity(*nuc, p.E(), p.u(), v_n,
       p.neutron_xs(i_nuclide).elastic, kT, p.current_seed());
   }
-  // std::cout << "v_n = "<< p.speed() <<std::endl;
   p.v_t() = C_LIGHT * std::sqrt(2 / p.getMass()) * v_t;
-  // std::cout << "v_t = "<< p.v_t().norm() <<std::endl;
   //  Velocity of center-of-mass
   Direction v_cm = (v_n + awr * v_t) / (awr + 1.0);
 
@@ -837,7 +835,6 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
     double pdf = data::thermal_scatt[i_sab]->data_[i_temp].get_pdf(
       micro, p.E(), E_out_ghost, mu_det, p.current_seed());
     Particle ghost_particle = Particle();
-    // std::cout << "E out ghost " << E_out_ghost << std::endl;
     ghost_particle.initialize_ghost_particle(p, u_lab_unit, E_out_ghost);
     score_ghost_particle(ghost_particle, pdf, i_tally);
   }
@@ -1210,8 +1207,6 @@ void score_fission_neutron(int i_tally, int i_nuclide, const Reaction& rx,
     auto& ghost_p = ghost_particles[index];
     double pdf_lab = pdfs_lab[index];
     score_ghost_particle(ghost_p, pdf_lab, i_tally);
-    //    std::cout << "pdf lab in LOOP " << pdf_lab <<std::endl;
-    //   std::cout << "E_ghost " << ghost_p.E() <<std::endl;
     // calculate shielding
 
   } // for loop on ghost particles
@@ -1226,7 +1221,6 @@ void inelastic_scatter(const Nuclide& nuc, const Reaction& rx, Particle& p)
   // sample outgoing energy and scattering cosine
   double E;
   double mu;
-  // std::cout << "E_in inelastic_scatter" << E_in << std::endl;
   rx.products_[0].sample(E_in, E, mu, p.current_seed());
 
   // if scattering system is in center-of-mass, transfer cosine of scattering

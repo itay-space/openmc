@@ -320,12 +320,9 @@ void KalbachMann::get_pdf(double det_pos[4], double E_in, double& E_out,
     } else {
       E_out = E_l_k;
     }
-    //  std::cout << " Histogram interpolation" <<std::endl;
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k];
     km_a = distribution_[l].a[k];
-    // std::cout <<"Histo " << " km_r " <<  km_r << " km_a " <<  km_a <<
-    // std::endl;
 
   } else {
     // Linear-linear interpolation
@@ -342,7 +339,7 @@ void KalbachMann::get_pdf(double det_pos[4], double E_in, double& E_out,
           p_l_k) /
           frac;
     }
-    //  std::cout << " Linear-linear interpolation " <<std::endl;
+    //  Linear-linear interpolation
     // Determine Kalbach-Mann parameters
     km_r = distribution_[l].r[k] +
            (E_out - E_l_k) / (E_l_k1 - E_l_k) *
@@ -362,9 +359,6 @@ void KalbachMann::get_pdf(double det_pos[4], double E_in, double& E_out,
   }
 
   get_pdf_to_point_elastic(det_pos, p, mu_cm, Js, ghost_particles, E_out / 1e6);
-  // std::cout << " sent to pdf_elastic from kalbach, E3_out_cm  " << E_out/1e6
-  // <<std::endl; std::cout << " mu_cm" << mu_cm[0] <<std::endl; std::cout <<
-  // "ghost_particles[0].E() " << ghost_particles[0].E() <<std::endl;
   for (std::size_t i = 0; i < mu_cm.size(); ++i) {
     // Assuming Js.size() is the same as mu_cm.size()
     double mu_c = mu_cm[i];
@@ -374,8 +368,6 @@ void KalbachMann::get_pdf(double det_pos[4], double E_in, double& E_out,
                       km_r * std::sinh(km_a * mu_c)); // center of mass
     pdfs_lab.push_back(pdf_cm / std::abs(derivative));
   }
-
-  // std::cout << " my E out in KM  " << E_out <<std::endl;
 
   // https://docs.openmc.org/en/v0.8.0/methods/physics.html#equation-KM-pdf-angle
   // double pdf_mu = km_a / (2 * std::sinh(km_a)) * (std::cosh(km_a * mymu) +
