@@ -94,7 +94,7 @@ double Particle::getMass() const
   return mass;
 }
 
-void Particle::initilze_ghost_particle(
+void Particle::initialize_ghost_particle(
   Particle& p, Direction u_new, double E_new)
 {
   clear();
@@ -119,7 +119,7 @@ void Particle::initilze_ghost_particle(
   time_last() = p.time_last();
 }
 
-void Particle::initilze_ghost_particle_from_source(
+void Particle::initialize_ghost_particle_from_source(
   const SourceSite* src, Direction u_new)
 {
   // Reset some attributes

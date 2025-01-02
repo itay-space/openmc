@@ -110,7 +110,7 @@ void UncorrelatedAngleEnergy::get_pdf(double det_pos[4], double E_in,
     Direction u_lab_unit = u_lab / u_lab.norm(); // normalize
     double E_lab = E_out;
     Particle ghost_particle = Particle();
-    ghost_particle.initilze_ghost_particle(p, u_lab_unit, E_lab);
+    ghost_particle.initialize_ghost_particle(p, u_lab_unit, E_lab);
     ghost_particles.push_back(ghost_particle);
     double pdf_mu_lab;
     if (!angle_.empty()) {

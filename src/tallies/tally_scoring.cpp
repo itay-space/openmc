@@ -977,7 +977,7 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
           // transported individually later
           const auto& bank = p.secondary_bank();
           for (auto it = bank.end() - p.n_bank_second(); it < bank.end();
-               ++it) {
+            ++it) {
             score -= it->E;
           }
 
@@ -2658,7 +2658,7 @@ void score_point_tally_from_source(const SourceSite* src)
             double total_distance = u_lab.norm();
             pdf_mu_det =
               (2 * PI * total_distance * total_distance); // to cancel the Rs
-          }    // pdf is not defined for discrete case
+          } // pdf is not defined for discrete case
         } else // unexpected type
         {
           fatal_error("unexpected type");
@@ -2670,7 +2670,7 @@ void score_point_tally_from_source(const SourceSite* src)
       // fmt::print("uref = {0} , {1} ,
       // {2}\n",my_u_ref.x,my_u_ref.y,my_u_ref.z);
       Particle ghost_particle = Particle();
-      ghost_particle.initilze_ghost_particle_from_source(src, u_lab_unit);
+      ghost_particle.initialize_ghost_particle_from_source(src, u_lab_unit);
 
       // if (std::isnan(flux)) {std::cout << "flux nan from source "  <<
       // std::endl;flux=0;}
@@ -2704,7 +2704,7 @@ void score_surface_tally(Particle& p, const vector<int>& tallies)
       // for a further scoring function.
       double score = current * filter_weight;
       for (auto score_index = 0; score_index < tally.scores_.size();
-           ++score_index) {
+        ++score_index) {
 #pragma omp atomic
         tally.results_(filter_index, score_index, TallyResult::VALUE) += score;
       }
@@ -2913,7 +2913,7 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
     // (p3cm_tot_1*p3cm_tot_1*E3_tot_1)/(E3cm_1*p3_tot_1*p3_tot_1) <<std::endl;
 
     Particle ghost_particle = Particle();
-    ghost_particle.initilze_ghost_particle(p, u_lab_unit, E3k_1);
+    ghost_particle.initialize_ghost_particle(p, u_lab_unit, E3k_1);
     ghost_particles.push_back(ghost_particle);
 
     if (true) //((cond < 1) && (theta < std::asin(cond)))
@@ -2967,7 +2967,7 @@ void get_pdf_to_point_elastic(double det_pos[4], Particle& p,
       Js.push_back(derivative2);
 
       Particle ghost_particle = Particle();
-      ghost_particle.initilze_ghost_particle(p, u_lab_unit, E3k_2);
+      ghost_particle.initialize_ghost_particle(p, u_lab_unit, E3k_2);
       ghost_particles.push_back(ghost_particle);
     }
   }
@@ -3136,7 +3136,7 @@ void score_pulse_height_tally(Particle& p, const vector<int>& tallies)
 
             // Loop over scores.
             for (auto score_index = 0; score_index < tally.scores_.size();
-                 ++score_index) {
+              ++score_index) {
 #pragma omp atomic
               tally.results_(filter_index, score_index, TallyResult::VALUE) +=
                 filter_weight;

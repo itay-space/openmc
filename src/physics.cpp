@@ -838,7 +838,7 @@ void sab_scatter(int i_nuclide, int i_sab, Particle& p)
       micro, p.E(), E_out_ghost, mu_det, p.current_seed());
     Particle ghost_particle = Particle();
     // std::cout << "E out ghost " << E_out_ghost << std::endl;
-    ghost_particle.initilze_ghost_particle(p, u_lab_unit, E_out_ghost);
+    ghost_particle.initialize_ghost_particle(p, u_lab_unit, E_out_ghost);
     score_ghost_particle(ghost_particle, pdf, i_tally);
   }
 
