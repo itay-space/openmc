@@ -84,6 +84,9 @@ public:
   //! \param seed Pseudorandom number seed pointer
   //! \return Sampled value
   double sample(uint64_t* seed) const override;
+  //! Calculate the probability density function (PDF) at a given value
+  //! \param x The value at which to evaluate the PDF
+  //! \return The value of the PDF at the given point
   double get_pdf(double x) const;
 
   double integral() const override { return di_.integral(); };

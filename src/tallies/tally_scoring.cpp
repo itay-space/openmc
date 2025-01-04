@@ -2728,7 +2728,7 @@ double get_MFP(Particle& ghost_particle, double total_distance)
     }
     remaining_distance -= advance_distance;
     ghost_particle.time() +=
-      advance_distance / ghost_particle.speed(); // not reletevistic
+      advance_distance / ghost_particle.speed(); 
     ghost_particle.event_cross_surface();
     ghost_particle.event_calculate_xs();
     ghost_particle.boundary() = distance_to_boundary(ghost_particle);

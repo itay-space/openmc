@@ -1207,7 +1207,7 @@ void score_fission_neutron(int i_tally, int i_nuclide, const Reaction& rx,
     auto& ghost_p = ghost_particles[index];
     double pdf_lab = pdfs_lab[index];
     score_ghost_particle(ghost_p, pdf_lab, i_tally);
-    // calculate shielding
+    
 
   } // for loop on ghost particles
 }
