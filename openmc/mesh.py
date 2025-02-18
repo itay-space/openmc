@@ -9,6 +9,7 @@ from numbers import Integral, Real
 import h5py
 import lxml.etree as ET
 import numpy as np
+from pathlib import Path
 
 import openmc
 import openmc.checkvalue as cv
@@ -99,20 +100,39 @@ class MeshBase(IDManagerMixin, ABC):
             Instance of a MeshBase subclass
 
         """
+        mesh_type = 'regular' if 'type' not in group.keys() else group['type'][()].decode()
+        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
+        mesh_name = '' if not 'name' in group else group['name'][()].decode()
 
-        mesh_type = group['type'][()].decode()
         if mesh_type == 'regular':
-            return RegularMesh.from_hdf5(group)
+            return RegularMesh.from_hdf5(group, mesh_id, mesh_name)
         elif mesh_type == 'rectilinear':
-            return RectilinearMesh.from_hdf5(group)
+            return RectilinearMesh.from_hdf5(group, mesh_id, mesh_name)
         elif mesh_type == 'cylindrical':
-            return CylindricalMesh.from_hdf5(group)
+            return CylindricalMesh.from_hdf5(group, mesh_id, mesh_name)
         elif mesh_type == 'spherical':
-            return SphericalMesh.from_hdf5(group)
+            return SphericalMesh.from_hdf5(group, mesh_id, mesh_name)
         elif mesh_type == 'unstructured':
-            return UnstructuredMesh.from_hdf5(group)
+            return UnstructuredMesh.from_hdf5(group, mesh_id, mesh_name)
         else:
             raise ValueError('Unrecognized mesh type: "' + mesh_type + '"')
+
+    def to_xml_element(self):
+        """Return XML representation of the mesh
+
+        Returns
+        -------
+        element : lxml.etree._Element
+            XML element containing mesh data
+
+        """
+        elem = ET.Element("mesh")
+
+        elem.set("id", str(self._id))
+        if self.name:
+            elem.set("name", self.name)
+
+        return elem
 
     @classmethod
     def from_xml_element(cls, elem: ET.Element):
@@ -132,17 +152,20 @@ class MeshBase(IDManagerMixin, ABC):
         mesh_type = get_text(elem, 'type')
 
         if mesh_type == 'regular' or mesh_type is None:
-            return RegularMesh.from_xml_element(elem)
+            mesh = RegularMesh.from_xml_element(elem)
         elif mesh_type == 'rectilinear':
-            return RectilinearMesh.from_xml_element(elem)
+            mesh = RectilinearMesh.from_xml_element(elem)
         elif mesh_type == 'cylindrical':
-            return CylindricalMesh.from_xml_element(elem)
+            mesh = CylindricalMesh.from_xml_element(elem)
         elif mesh_type == 'spherical':
-            return SphericalMesh.from_xml_element(elem)
+            mesh = SphericalMesh.from_xml_element(elem)
         elif mesh_type == 'unstructured':
-            return UnstructuredMesh.from_xml_element(elem)
+            mesh = UnstructuredMesh.from_xml_element(elem)
         else:
             raise ValueError(f'Unrecognized mesh type "{mesh_type}" found.')
+
+        mesh.name = get_text(elem, 'name', default='')
+        return mesh
 
     def get_homogenized_materials(
             self,
@@ -791,11 +814,9 @@ class RegularMesh(StructuredMesh):
         return string
 
     @classmethod
-    def from_hdf5(cls, group: h5py.Group):
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
-
+    def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
-        mesh = cls(mesh_id)
+        mesh = cls(mesh_id=mesh_id, name=name)
         mesh.dimension = group['dimension'][()]
         mesh.lower_left = group['lower_left'][()]
         if 'width' in group:
@@ -899,9 +920,7 @@ class RegularMesh(StructuredMesh):
             XML element containing mesh data
 
         """
-
-        element = ET.Element("mesh")
-        element.set("id", str(self._id))
+        element = super().to_xml_element()
 
         if self._dimension is not None:
             subelement = ET.SubElement(element, "dimension")
@@ -936,10 +955,6 @@ class RegularMesh(StructuredMesh):
         """
         mesh_id = int(get_text(elem, 'id'))
         mesh = cls(mesh_id=mesh_id)
-
-        mesh_type = get_text(elem, 'type')
-        if mesh_type is not None:
-            mesh.type = mesh_type
 
         dimension = get_text(elem, 'dimension')
         if dimension is not None:
@@ -1235,11 +1250,9 @@ class RectilinearMesh(StructuredMesh):
         return string
 
     @classmethod
-    def from_hdf5(cls, group: h5py.Group):
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
-
+    def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
-        mesh = cls(mesh_id=mesh_id)
+        mesh = cls(mesh_id=mesh_id, name=name)
         mesh.x_grid = group['x_grid'][()]
         mesh.y_grid = group['y_grid'][()]
         mesh.z_grid = group['z_grid'][()]
@@ -1279,8 +1292,7 @@ class RectilinearMesh(StructuredMesh):
 
         """
 
-        element = ET.Element("mesh")
-        element.set("id", str(self._id))
+        element = super().to_xml_element()
         element.set("type", "rectilinear")
 
         subelement = ET.SubElement(element, "x_grid")
@@ -1541,12 +1553,11 @@ class CylindricalMesh(StructuredMesh):
         return (r_index, phi_index, z_index)
 
     @classmethod
-    def from_hdf5(cls, group: h5py.Group):
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
-
+    def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
         mesh = cls(
             mesh_id=mesh_id,
+            name=name,
             r_grid = group['r_grid'][()],
             phi_grid = group['phi_grid'][()],
             z_grid = group['z_grid'][()],
@@ -1647,8 +1658,7 @@ class CylindricalMesh(StructuredMesh):
 
         """
 
-        element = ET.Element("mesh")
-        element.set("id", str(self._id))
+        element = super().to_xml_element()
         element.set("type", "cylindrical")
 
         subelement = ET.SubElement(element, "r_grid")
@@ -1926,15 +1936,14 @@ class SphericalMesh(StructuredMesh):
         return string
 
     @classmethod
-    def from_hdf5(cls, group: h5py.Group):
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
-
+    def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
         mesh = cls(
             r_grid = group['r_grid'][()],
             theta_grid = group['theta_grid'][()],
             phi_grid = group['phi_grid'][()],
             mesh_id=mesh_id,
+            name=name
         )
         if 'origin' in group:
             mesh.origin = group['origin'][()]
@@ -1951,8 +1960,7 @@ class SphericalMesh(StructuredMesh):
 
         """
 
-        element = ET.Element("mesh")
-        element.set("id", str(self._id))
+        element = super().to_xml_element()
         element.set("type", "spherical")
 
         subelement = ET.SubElement(element, "r_grid")
@@ -2072,7 +2080,9 @@ class UnstructuredMesh(MeshBase):
     Parameters
     ----------
     filename : path-like
-        Location of the unstructured mesh file
+        Location of the unstructured mesh file. Supported files for 'moab'
+        library are .h5 and .vtk. Supported files for 'libmesh' library are
+        exodus mesh files .exo.
     library : {'moab', 'libmesh'}
         Mesh library used for the unstructured mesh tally
     mesh_id : int
@@ -2349,55 +2359,71 @@ class UnstructuredMesh(MeshBase):
         self.write_data_to_vtk(**kwargs)
 
     def write_data_to_vtk(
-            self,
-            filename: PathLike | None  = None,
-            datasets: dict | None = None,
-            volume_normalization: bool = True
+        self,
+        filename: PathLike | None = None,
+        datasets: dict | None = None,
+        volume_normalization: bool = True,
     ):
         """Map data to unstructured VTK mesh elements.
+
+        If filename is None, then a filename will be generated based on the mesh
+        ID, and exported to VTK format.
 
         Parameters
         ----------
         filename : str or pathlib.Path
-            Name of the VTK file to write
+            Name of the VTK file to write. If the filename ends in '.vtu' then a
+            binary VTU format file will be written, if the filename ends in
+            '.vtk' then a legacy VTK file will be written.
         datasets : dict
-            Dictionary whose keys are the data labels
-            and values are numpy appropriately sized arrays
-            of the data
+            Dictionary whose keys are the data labels and values are numpy
+            appropriately sized arrays of the data
         volume_normalization : bool
-            Whether or not to normalize the data by the
-            volume of the mesh elements
+            Whether or not to normalize the data by the volume of the mesh
+            elements
         """
-        import vtk
-        from vtk.util import numpy_support as nps
+        from vtkmodules.util import numpy_support
+        from vtkmodules import vtkCommonCore
+        from vtkmodules import vtkCommonDataModel
+        from vtkmodules import vtkIOLegacy
+        from vtkmodules import vtkIOXML
 
         if self.connectivity is None or self.vertices is None:
-            raise RuntimeError('This mesh has not been '
-                               'loaded from a statepoint file.')
+            raise RuntimeError(
+                "This mesh has not been loaded from a statepoint file."
+            )
 
         if filename is None:
-            filename = f'mesh_{self.id}.vtk'
+            filename = f"mesh_{self.id}.vtk"
 
-        writer = vtk.vtkUnstructuredGridWriter()
+        if Path(filename).suffix == ".vtk":
+            writer = vtkIOLegacy.vtkUnstructuredGridWriter()
+
+        elif Path(filename).suffix == ".vtu":
+            writer = vtkIOXML.vtkXMLUnstructuredGridWriter()
+            writer.SetCompressorTypeToZLib()
+            writer.SetDataModeToBinary()
 
         writer.SetFileName(str(filename))
 
-        grid = vtk.vtkUnstructuredGrid()
+        grid = vtkCommonDataModel.vtkUnstructuredGrid()
 
-        vtk_pnts = vtk.vtkPoints()
-        vtk_pnts.SetData(nps.numpy_to_vtk(self.vertices))
-        grid.SetPoints(vtk_pnts)
+        points = vtkCommonCore.vtkPoints()
+        points.SetData(numpy_support.numpy_to_vtk(self.vertices))
+        grid.SetPoints(points)
 
         n_skipped = 0
         for elem_type, conn in zip(self.element_types, self.connectivity):
             if elem_type == self._LINEAR_TET:
-                elem = vtk.vtkTetra()
+                elem = vtkCommonDataModel.vtkTetra()
             elif elem_type == self._LINEAR_HEX:
-                elem = vtk.vtkHexahedron()
+                elem = vtkCommonDataModel.vtkHexahedron()
             elif elem_type == self._UNSUPPORTED_ELEM:
                 n_skipped += 1
+                continue
             else:
-                raise RuntimeError(f'Invalid element type {elem_type} found')
+                raise RuntimeError(f"Invalid element type {elem_type} found")
+
             for i, c in enumerate(conn):
                 if c == -1:
                     break
@@ -2406,30 +2432,36 @@ class UnstructuredMesh(MeshBase):
             grid.InsertNextCell(elem.GetCellType(), elem.GetPointIds())
 
         if n_skipped > 0:
-            warnings.warn(f'{n_skipped} elements were not written because '
-                          'they are not of type linear tet/hex')
+            warnings.warn(
+                f"{n_skipped} elements were not written because "
+                "they are not of type linear tet/hex"
+            )
 
         # check that datasets are the correct size
         datasets_out = []
         if datasets is not None:
             for name, data in datasets.items():
                 if data.shape != self.dimension:
-                    raise ValueError(f'Cannot apply dataset "{name}" with '
-                                     f'shape {data.shape} to mesh {self.id} '
-                                     f'with dimensions {self.dimension}')
+                    raise ValueError(
+                        f'Cannot apply dataset "{name}" with '
+                        f"shape {data.shape} to mesh {self.id} "
+                        f"with dimensions {self.dimension}"
+                    )
 
             if volume_normalization:
                 for name, data in datasets.items():
                     if np.issubdtype(data.dtype, np.integer):
-                        warnings.warn(f'Integer data set "{name}" will '
-                                      'not be volume-normalized.')
+                        warnings.warn(
+                            f'Integer data set "{name}" will '
+                            "not be volume-normalized."
+                        )
                         continue
                     data /= self.volumes
 
             # add data to the mesh
             for name, data in datasets.items():
                 datasets_out.append(data)
-                arr = vtk.vtkDoubleArray()
+                arr = vtkCommonCore.vtkDoubleArray()
                 arr.SetName(name)
                 arr.SetNumberOfTuples(data.size)
 
@@ -2442,8 +2474,7 @@ class UnstructuredMesh(MeshBase):
         writer.Write()
 
     @classmethod
-    def from_hdf5(cls, group: h5py.Group):
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
+    def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         filename = group['filename'][()].decode()
         library = group['library'][()].decode()
         if 'options' in group.attrs:
@@ -2451,7 +2482,7 @@ class UnstructuredMesh(MeshBase):
         else:
             options = None
 
-        mesh = cls(filename=filename, library=library, mesh_id=mesh_id, options=options)
+        mesh = cls(filename=filename, library=library, mesh_id=mesh_id, name=name, options=options)
         mesh._has_statepoint_data = True
         vol_data = group['volumes'][()]
         mesh.volumes = np.reshape(vol_data, (vol_data.shape[0],))
@@ -2478,9 +2509,9 @@ class UnstructuredMesh(MeshBase):
 
         """
 
-        element = ET.Element("mesh")
-        element.set("id", str(self._id))
+        element = super().to_xml_element()
         element.set("type", "unstructured")
+
         element.set("library", self._library)
         if self.options is not None:
             element.set('options', self.options)

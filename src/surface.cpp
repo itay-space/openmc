@@ -141,7 +141,7 @@ Direction Surface::reflect(Position r, Direction u, GeometryState* p) const
 }
 
 Direction Surface::diffuse_reflect(
-  Position r, Direction u, uint64_t* seed, GeometryState* p) const
+  Position r, Direction u, uint64_t* seed) const
 {
   // Diffuse reflect direction according to the normal.
   // cosine distribution
@@ -165,9 +165,9 @@ void Surface::to_hdf5(hid_t group_id) const
 {
   hid_t surf_group = create_group(group_id, fmt::format("surface {}", id_));
 
-  if (geom_type_ == GeometryType::DAG) {
+  if (geom_type() == GeometryType::DAG) {
     write_string(surf_group, "geom_type", "dagmc", false);
-  } else if (geom_type_ == GeometryType::CSG) {
+  } else if (geom_type() == GeometryType::CSG) {
     write_string(surf_group, "geom_type", "csg", false);
 
     if (bc_) {
@@ -189,11 +189,11 @@ void Surface::to_hdf5(hid_t group_id) const
 
 CSGSurface::CSGSurface() : Surface {}
 {
-  geom_type_ = GeometryType::CSG;
+  geom_type() = GeometryType::CSG;
 };
 CSGSurface::CSGSurface(pugi::xml_node surf_node) : Surface {surf_node}
 {
-  geom_type_ = GeometryType::CSG;
+  geom_type() = GeometryType::CSG;
 };
 
 //==============================================================================

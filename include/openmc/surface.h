@@ -38,7 +38,6 @@ public:
   int id_;                           //!< Unique ID
   std::string name_;                 //!< User-defined name
   unique_ptr<BoundaryCondition> bc_; //!< Boundary condition
-  GeometryType geom_type_;           //!< Geometry type indicator (CSG or DAGMC)
   bool surf_source_ {false}; //!< Activate source banking for the surface?
 
   explicit Surface(pugi::xml_node surf_node);
@@ -63,7 +62,7 @@ public:
     Position r, Direction u, GeometryState* p = nullptr) const;
 
   virtual Direction diffuse_reflect(
-    Position r, Direction u, uint64_t* seed, GeometryState* p = nullptr) const;
+    Position r, Direction u, uint64_t* seed) const;
 
   //! Evaluate the equation describing the surface.
   //!
@@ -90,6 +89,13 @@ public:
 
   //! Get the BoundingBox for this surface.
   virtual BoundingBox bounding_box(bool /*pos_side*/) const { return {}; }
+
+  // Accessors
+  const GeometryType& geom_type() const { return geom_type_; }
+  GeometryType& geom_type() { return geom_type_; }
+
+private:
+  GeometryType geom_type_; //!< Geometry type indicator (CSG or DAGMC)
 
 protected:
   virtual void to_hdf5_inner(hid_t group_id) const = 0;
