@@ -24,6 +24,7 @@ enum class FilterType {
   CELL,
   CELL_INSTANCE,
   COLLISION,
+  D,
   DELAYED_GROUP,
   DISTRIBCELL,
   ENERGY_FUNCTION,

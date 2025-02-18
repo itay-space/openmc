@@ -25,7 +25,7 @@ _FILTER_TYPES = (
     'energyout', 'mu', 'musurface', 'polar', 'azimuthal', 'distribcell', 'delayedgroup',
     'energyfunction', 'cellfrom', 'materialfrom', 'legendre', 'spatiallegendre',
     'sphericalharmonics', 'zernike', 'zernikeradial', 'particle', 'cellinstance',
-    'collision', 'time'
+    'collision', 'time' , "d"
 )
 
 _CURRENT_NAMES = (
@@ -1567,6 +1567,52 @@ def _path_to_levels(path):
         path_items.insert(i, ('lattice', lat_id, lat_xyz))
 
     return path_items
+
+
+class DFilter(RealFilter):
+    """Bins tally events based on the particle's time multiplied by velocity.
+
+    Parameters
+    ----------
+    values : iterable of float
+        A list of values for which each successive pair constitutes a range of
+        time × velocity in [cm] for a single bin.
+    filter_id : int, optional
+        Unique identifier for the filter.
+
+    Attributes
+    ----------
+    values : numpy.ndarray
+        An array of values for which each successive pair constitutes a range of
+        time × velocity in [m] for a single bin.
+    id : int
+        Unique identifier for the filter.
+    bins : numpy.ndarray
+        An array of shape (N, 2) where each row is a pair of time × velocity in [m]
+        for a single filter bin.
+    num_bins : int
+        The number of filter bins.
+
+    """
+    units = 'cm'  # Modified time units (since time * velocity = distance)
+
+    def get_bin_index(self, filter_bin):
+        """Finds the corresponding bin index for a given time × velocity."""
+        deltas = np.abs(self.bins[:, 1] - filter_bin[1]) / filter_bin[1]
+        min_delta = np.min(deltas)
+        if min_delta < 1e-3:
+            return deltas.argmin()
+        else:
+            msg = ('Unable to get the bin index for Filter since '
+                   f'"{filter_bin}" is not one of the bins')
+            raise ValueError(msg)
+
+    def check_bins(self, bins):
+        """Check that bins are valid and strictly increasing."""
+        super().check_bins(bins)
+        for v0, v1 in bins:
+            cv.check_greater_than('filter value', v0, 0., equality=False)
+            cv.check_greater_than('filter value', v1, 0., equality=False)
 
 
 class DistribcellFilter(Filter):
